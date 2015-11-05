@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" output="com.ibm.layout.bin" path="com.ibm.layout.src">
+		<attributes>
+			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="com.ibm.layout/com.ibm.layout.src/jni_src"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="src" output="com.user.bin" path="com.user.src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/libs/asm-all-5.0.jar"/>
+	<classpathentry kind="lib" path="/libs/junit-4.10.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

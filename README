@@ -1,0 +1,115 @@
+Contents of panama-layout-prototype
+
+panama-layout-prototype
+        |-> com.ibm.layout.src 
+                |-> com.ibm.layout              #Layout Runtime
+                |-> com.ibm.layout.gen          #Layout Runtime primitive array classes
+                |-> com.ibm.layout.ld2j         #LD2J parser
+                |-> jni_src                     #JNI natives for bytebuffer functionality
+        |-> com.ibm.layout.bin
+        |-> com.user.src
+                |-> com.user.examples.myline    #Demo for adding user functionality to generated facades
+                |-> com.user.test               #Basic testing of layout features
+                |-> com.user.types              #Types used in tests
+        |-> com.user.bin
+        README
+        LICENSE
+
+
+GETTING STARTED:
+1) Clone this repository
+
+2) Download Java 8 JDK (Java8 is required to run this prototype, it will not work on earlier versions) from http://www.ibm.com/developerworks/java/jdk/
+
+3) Download ASM-5.0.X from http://forge.ow2.org/projects/asm/
+
+4) Download junit from http://sourceforge.net/projects/junit/files/junit/4.10/
+	NOTE: This is only required if you want to run the Layout tests (com.user.test)
+	
+5) Set environment variable "workspaceDir" to the directory of LayoutProtoype. Place downloaded jars in $workspaceDir. If you are using eclipse add libraries to the referenced library path
+
+	
+COMPILING LD2J:
+1) cd $workspaceDir/com.ibm.layout.src
+
+2) javac -d $workspaceDir/com.ibm.layout.bin com/ibm/layout/ld2j/*.java
+
+
+COMPILING LAYOUT RUNTIME:
+1) cd $workspaceDir/com.ibm.layout.src
+
+2) javac -cp $workspaceDir/asm-all-5.0.jar -d $workspaceDir/com.ibm.layout.bin com/ibm/layout/*.java com/ibm/layout/gen/*.java
+# some versions of javac may output the following warning: "warning: Unsafe is internal proprietary API and may be removed in a future release" (41 warnings)
+# these can be ignored
+
+
+COMPILING EXAMPLE AND JUNIT TESTS:
+1) cd $workspaceDir/com.user.src
+
+2) javac -cp $workspaceDir/com.ibm.layout.bin:$workspaceDir/junit-4.10.jar -d $workspaceDir/com.user.bin com/user/types/*.java com/user/examples/myline/*.java com/user/test/*.java
+# some versions of javac may output the following warning: "warning: Unsafe is internal proprietary API and may be removed in a future release" (41 warnings)
+# these can be ignored
+
+
+RUNNING LD2J (myline example):
+1) java -cp $workspaceDir/com.ibm.layout.bin com.ibm.layout.ld2j.Parser $workspaceDir/com.user.src/com/user/examples/myline/LD $workspaceDir/com.user.src/com/user/examples/myline/ com.user.examples.myline
+output:
+Struct name: Point
+Variable name: x  Variable type: int
+Variable name: y  Variable type: int
+Struct name: Line
+Variable name: start  Variable type: Point
+Variable name: end  Variable type: Point
+Parsing Successful!
+
+
+RUNNING TESTMYLINE
+This test demonstrates how to add user functionality to a generated facade. MyLine is a user defined layout.
+1) java -cp $workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin:$workspaceDir/asm-all-5.0.jar com.user.examples.myline.TestMyLine
+output:
+== testMyLine ==
+line: ((x: 0, y: 0)(x: 0, y: 0))
+ length: 0.0
+line: ((x: 10, y: 11)(x: 20, y: 21))
+ length: 14.142135623730951
+
+
+RUNNING JUNIT TESTS (from commandline):
+1) java -cp $workspaceDir/junit-4.10.jar:$workspaceDir/asm-all-5.0.jar:$workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin org.junit.runner.JUnitCore com.user.test.TestLayout
+Sample output:
+JUnit version 4.10
+..c: (x: 10, y: 20)
+ca.getLength() = 10
+ca[0]: (x: 0, y: 0)
+ca[1]: (x: 1, y: -1)
+ca[2]: (x: 2, y: -2)
+ca[3]: (x: 3, y: -3)
+ca[4]: (x: 4, y: -4)
+ca[5]: (x: 5, y: -5)
+...
+
+
+IMPORTING INTO ECLIPSE:
+1) File -> Import
+
+2) General -> Existing Projects into Workspace
+
+3) select the location of LayoutPrototype and click finish
+
+
+RUNNING JUNIT TESTS (from Eclipse)
+1) right click TestLayout (in /LayoutPrototype/com.user.src/com/user/test/) and select Run As -> Junit Test
+
+
+COMPILING AND RUNNING WITH JNI NATIVES:
+NOTE: only required if using:
+LayoutType.asByteBuffer(...) or LayoutType.fromByteBuffer(...) functionality
+1) cd $workspaceDir/com.ibm.layout.src/jni_src
+
+2) export JAVA_HOME=/path/to/JDK
+
+3) make -f makefile.lnx64
+
+#running with JNI natives
+4) Add -Djava.library.path=$workspaceDir/com.ibm.layout.src/jni_src to the VM options when launching java
+

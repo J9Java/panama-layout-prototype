@@ -1,0 +1,26 @@
+PATH_TO_JNI_H = $(JAVA_HOME)/include
+
+CC = cl
+CFLAGS = -nologo /I. /I$(PATH_TO_JNI_H) /I$(PATH_TO_JNI_H)/win32 -DWIN32 -D_CRT_SECURE_NO_WARNINGS -W3 -WX -c
+
+OBJECTS = com_ibm_layout_UnsafeHelper.obj
+
+.suffixes: .res .rc .c .obj
+
+.rc.res:
+	rc /nologo $<
+
+.c.obj:
+	cl $(CFLAGS) -c $<
+
+
+all: layouts.dll
+
+layouts.lib: $(OBJECTS)
+	lib /nologo -subsystem:console -out:layouts.lib -machine:i386 $(OBJECTS)
+
+layouts.dll: layouts.lib
+	link  /nologo /incremental:no -entry:_DllMainCRTStartup@12 -dll  -machine:i386 -subsystem:console -out:layouts.dll -map:layouts.map $(OBJECTS)	
+
+clean:
+	rm -f $(OBJECTS) layouts.lib layouts.dll layouts.map

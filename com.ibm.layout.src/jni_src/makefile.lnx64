@@ -1,0 +1,16 @@
+PATH_TO_JNI_H = $(JAVA_HOME)/include
+
+CFLAGS = -I. -I$(PATH_TO_JNI_H) -I$(PATH_TO_JNI_H)/linux -fpic -m64 -Werror -c
+
+OBJECTS = com_ibm_layout_UnsafeHelper.o
+
+LIBNAME = liblayouts.so
+
+all: $(LIBNAME)
+
+$(LIBNAME): $(OBJECTS)
+	$(CC) -shared -Wl,--version-script,layouts.ver -Wl,-soname=$(LIBNAME) -m64 -o $@ $(OBJECTS) -lm
+
+clean:
+	rm -f $(OBJECTS) $(LIBNAME)
+	
