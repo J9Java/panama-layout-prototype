@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -16,16 +16,21 @@ import java.nio.ByteBuffer;
  * 
  * <p>
  * Types of layouts are:<br>
- * <p>
- * Types of layouts are:<br>
  * - singleton<br>
  * - (1|2)-dim primitive array<br>
  * - (1|2)-dim layout array<br>
+ * - 1-dim layout variable length array
  * </p>
  */
 public interface LayoutType {
 	
 	public abstract void bindLocation(Location loc);
+	
+	/**
+	 * Queries whether layout contains VLA either directly or in a nested layout
+	 * @return returns true if layout contains VLA, false otherwise
+	 */
+	public abstract boolean containsVLA();
 	
 	/**
 	 * sizeof an instance

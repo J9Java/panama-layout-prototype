@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -26,10 +26,10 @@ class Helper {
 	 * @return boolean
 	 * @throws VerifierException
 	 */
-	public static boolean testValidation(String variable_name, String variable_type) throws VerifierException {
+	public static boolean testValidation(String variable_name, String variable_type, String structDecl) throws VerifierException {
 		if (variable_name.contains("\"") || variable_name.contains(",") || variable_name.contains(":")) {
-			throw new VerifierException("Invalid file format: " + variable_name + ":" + variable_type + " at line "
-					+ getLineNumber());
+			throw new VerifierException("Invalid file format: " + variable_name + ":" + variable_type + " in Layout "
+					+ structDecl.split(":")[0]);
 		}
 		for (primitiveType typeIndex : primitiveType.values()) {
 			if (typeIndex.name().toLowerCase().equals(variable_type)) {
@@ -43,11 +43,7 @@ class Helper {
 			return true;
 		}
 		throw new VerifierException("Neither a primitive type nor Nested struct: " + variable_name + ":"
-				+ variable_type + " at line " + getLineNumber());
-	}
-
-	public static int getLineNumber() {
-		return Struct.count + 1;
+				+ variable_type + " in Layout '" + structDecl.split(":")[0] + "'");
 	}
 
 	/**
@@ -146,5 +142,19 @@ class Helper {
 	 */
 	public static boolean isFieldDup(String variable_name) {
 		return Variable.allVariableName.contains(" " + variable_name + " ");
+	}
+
+	/**
+	 * Tests whether input is an integer or not
+	 * @param val String contain value to be tested
+	 * @return an <code>boolean</code> that with the result.
+	 */
+	public static boolean isInteger(String val) {
+		for (int i = 0; i < val.length(); i++) {
+			if (!Character.isDigit(val.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
 	}
 }

@@ -5,12 +5,13 @@ panama-layout-prototype
                 |-> com.ibm.layout              #Layout Runtime
                 |-> com.ibm.layout.gen          #Layout Runtime primitive array classes
                 |-> com.ibm.layout.ld2j         #LD2J parser
-                |-> jni_src                     #JNI natives for bytebuffer functionality
+                |-> jni_src                     #JNI natives for ByteBuffer functionality
         |-> com.ibm.layout.bin
         |-> com.user.src
-                |-> com.user.examples.myline    #Demo for adding user functionality to generated facades
-                |-> com.user.test               #Basic testing of layout features
-                |-> com.user.types              #Types used in tests
+                |-> com.user.examples.myline                #Demo for adding user functionality to generated facades
+                |-> com.user.examples.variablelengtharray   #Demo with variable length arrays
+                |-> com.user.test                           #Basic testing of layout features
+                |-> com.user.types                          #Types used in tests
         |-> com.user.bin
         README
         LICENSE
@@ -39,15 +40,15 @@ COMPILING LAYOUT RUNTIME:
 1) cd $workspaceDir/com.ibm.layout.src
 
 2) javac -cp $workspaceDir/asm-all-5.0.jar -d $workspaceDir/com.ibm.layout.bin com/ibm/layout/*.java com/ibm/layout/gen/*.java
-# some versions of javac may output the following warning: "warning: Unsafe is internal proprietary API and may be removed in a future release" (41 warnings)
+# some versions of javac may output several warnings of this type: "warning: Unsafe is internal proprietary API and may be removed in a future release"
 # these can be ignored
 
 
 COMPILING EXAMPLE AND JUNIT TESTS:
 1) cd $workspaceDir/com.user.src
 
-2) javac -cp $workspaceDir/com.ibm.layout.bin:$workspaceDir/junit-4.10.jar -d $workspaceDir/com.user.bin com/user/types/*.java com/user/examples/myline/*.java com/user/test/*.java
-# some versions of javac may output the following warning: "warning: Unsafe is internal proprietary API and may be removed in a future release" (41 warnings)
+2) javac -cp $workspaceDir/com.ibm.layout.bin:$workspaceDir/junit-4.10.jar -d $workspaceDir/com.user.bin com/user/types/*.java com/user/examples/myline/*.java com/user/examples/variablelengtharray/*.java com/user/test/*.java
+# some versions of javac may output several warnings of this type: "warning: Unsafe is internal proprietary API and may be removed in a future release"
 # these can be ignored
 
 
@@ -73,6 +74,15 @@ line: ((x: 0, y: 0)(x: 0, y: 0))
 line: ((x: 10, y: 11)(x: 20, y: 21))
  length: 14.142135623730951
 
+RUNNING TESTVARIABLELENGTHARRAY
+This test demonstrates how to use a variable length array in Layouts.
+1)  java -cp $workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin:$workspaceDir/asm-all-5.0.jar com.user.examples.variablelengtharray.TestVariableLengthArray
+output:
+== testVariableLengthArray ==
+lengthOfArray field is 10
+length of VLArray is 10
+lengthOfArray field is 5
+length of VLArray is 5
 
 RUNNING JUNIT TESTS (from commandline):
 1) java -cp $workspaceDir/junit-4.10.jar:$workspaceDir/asm-all-5.0.jar:$workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin org.junit.runner.JUnitCore com.user.test.TestLayout

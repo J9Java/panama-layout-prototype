@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -48,6 +48,7 @@ final class ImplHelper implements Opcodes {
 		public String impl; // impl class for non-primitives
 		public long[] dims; // array dim
 		public String elementImpl; // element impl class for non-primitives
+		public String repeatCountMember;
 	}
 
 	/**
@@ -73,6 +74,22 @@ final class ImplHelper implements Opcodes {
 			classSet.add((Type)superInterface);
 		}
 		return classSet.toArray(new Type[0]);
+	}
+	
+	/**
+	 * Find the field description specified by fieldName in array of field description fields
+	 * 
+	 * @param fieldName name of field to search for
+	 * @param fields array of field descriptions
+	 * @return field description or null if not found
+	 */
+	static public ImplHelper.FieldDesc findField(String fieldName, ImplHelper.FieldDesc[] fields) {
+		for (ImplHelper.FieldDesc f : fields) {
+			if (f.name.equals(fieldName)) {
+				return f;
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -141,6 +158,21 @@ final class ImplHelper implements Opcodes {
 		return fldDesc;
 	}
 
+	/**
+	 * 
+	 * Tests whether input is an integer or not
+	 * @param val String containing value to be tested
+	 * @return a <code>boolean</code> with the result.
+	 */
+	private static boolean isInteger(String val) {
+		for (int i = 0; i < val.length(); i++) {
+			if (!Character.isDigit(val.charAt(i))) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
 	static private void parseFieldDescDims(FieldDesc fldDesc) {
 		// count the dimensions
 		int dims = getArrayDim(fldDesc.rawType);
@@ -158,7 +190,12 @@ final class ImplHelper implements Opcodes {
 
 			while (-1 != (open = fldDesc.rawType.indexOf('[', close + 1))) {
 				close = fldDesc.rawType.indexOf(']', open + 1);
-				fldDesc.dims[dimIdx] = Long.parseLong(fldDesc.rawType.substring(open + 1, close));
+				String size = fldDesc.rawType.substring(open + 1, close);
+				if (isInteger(size)) {
+					fldDesc.dims[dimIdx] = Long.parseLong(size);
+				} else {
+					fldDesc.repeatCountMember = size;
+				}
 				dimIdx++;
 			}
 		}
@@ -203,10 +240,17 @@ final class ImplHelper implements Opcodes {
 			fldDesc.impl = "com/ibm/layout/gen/DoubleArray" + dim + "DImpl";
 			break;
 		default:
-			fldDesc.sig = "Lcom/ibm/layout/Array" + dim + "D;";
-			fldDesc.sigGeneric = "Lcom/ibm/layout/Array" + dim + "D<" + nonArrayType + ">;";
-			fldDesc.impl = getArrayClassImplName(nonArrayType, dim);
-			fldDesc.elementImpl = "com/ibm/layout/gen/" + nonArrayType +"Impl";
+			if (null == fldDesc.repeatCountMember) {
+				fldDesc.sig = "Lcom/ibm/layout/Array" + dim + "D;";
+				fldDesc.sigGeneric = "Lcom/ibm/layout/Array" + dim + "D<" + nonArrayType + ">;";
+				fldDesc.impl = getArrayClassImplName(nonArrayType, dim);
+				fldDesc.elementImpl = "com/ibm/layout/gen/" + nonArrayType +"Impl";
+			} else {
+				fldDesc.sig = "Lcom/ibm/layout/VLArray;";
+				fldDesc.sigGeneric = "Lcom/ibm/layout/VLArray<" + nonArrayType + ">;";
+				fldDesc.impl = getVLArrayClassImplName(nonArrayType);
+				fldDesc.elementImpl = "com/ibm/layout/gen/" + nonArrayType +"Impl";
+			}
 			break;
 		}
 	}
@@ -239,7 +283,6 @@ final class ImplHelper implements Opcodes {
 			break;
 		default:
 			// signature of an interface class
-			// TODO assumes the class is in the same package as the container
 			fldDesc.sig = "L" + getBinaryPackageName(fieldClasses.get(fldDesc.name)) + "/" + fldDesc.rawType + ";";
 			fldDesc.impl = getImplClassName(fldDesc.rawType);
 			break;
@@ -355,6 +398,34 @@ final class ImplHelper implements Opcodes {
 	}
 
 	/**
+	 * Get the Signature for a JNI type
+	 * @param type string containing JNI type 
+	 * @return signature for JNI type
+	 */
+	static public String convertJNITypeToSig(String type) {
+		switch (type) {
+		case "jboolean":
+			return "Z";
+		case "jbyte":
+			return "B";
+		case "jchar":
+			return "C";
+		case "jshort":
+			return "S";
+		case "jint":
+			return "I";
+		case "jlong":
+			return "J";
+		case "jfloat":
+			return "F";
+		case "jdouble":
+			return "D";
+		default:
+			return null;
+		}
+	}
+	
+	/**
 	 * Return whether a field type is nested
 	 * @param fieldSig a field signature
 	 * @return whether a field type is nested
@@ -415,6 +486,28 @@ final class ImplHelper implements Opcodes {
 		return "com/ibm/layout/gen/" + simpleName + dim + "DImpl";
 	}
 
+	/**
+	 * Get the Impl name for a VLArray layout
+	 * @param simpleName simple name of element interface class (must extend Layout)
+	 * @param repeatCountMember repeat count name
+	 * @param enclosingTypeName name of enclosing type
+	 * @return
+	 */
+	static public String getVLArrayClassImplName(String simpleName) {
+		return "com/ibm/layout/gen/" + simpleName +"VLArrayImpl";
+	}
+	
+	/**
+	 * Get the Impl name for a VLArray layout
+	 * @param elementInterfaceClass a VLA layout class
+	 * @param repeatCountMember repeat count name
+	 * @param enclosingTypeName name of enclosing type
+	 * @return
+	 */
+	static public String getVLArrayClassImplName(Class<? extends Layout> elementInterfaceClass) {
+		return getVLArrayClassImplName(elementInterfaceClass.getSimpleName());
+	}
+	
 	static public boolean isPointerType(String type) {
 		return type.equals("Pointer");
 	}
@@ -480,26 +573,29 @@ final class ImplHelper implements Opcodes {
 			}
 	}
 	
-	static void genLayoutTypeImpl(ClassVisitor cw, MethodVisitor mv, FieldVisitor fv, String typeName) 
+	static void genLayoutTypeImpl(ClassVisitor cw, MethodVisitor mv, FieldVisitor fv, String typeName, boolean layoutContainsVLA) 
 	{
 		{
 			fv = cw.visitField(ACC_PRIVATE + ACC_FINAL + ACC_STATIC, "unsafe", "Lsun/misc/Unsafe;", null, null);
 			fv.visitEnd();
 		}
 		{
-			mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+			mv = cw.visitMethod(ACC_PUBLIC, "containsVLA", "()Z", null, null);
 			mv.visitCode();
-			mv.visitMethodInsn(INVOKESTATIC, "com/ibm/layout/UnsafeHelper", "getUnsafe", "()Lsun/misc/Unsafe;", false);
-			mv.visitFieldInsn(PUTSTATIC, typeName, "unsafe", "Lsun/misc/Unsafe;");
-			mv.visitInsn(RETURN);
-			mv.visitMaxs(1, 0);
+			//if layout contains VLA return true, otherwise false
+			if (layoutContainsVLA) {
+				mv.visitInsn(ICONST_1);
+			} else {
+				mv.visitInsn(ICONST_0);
+			}
+			mv.visitInsn(IRETURN);
+			mv.visitMaxs(1, 1);
 			mv.visitEnd();
 		}
 		{
 			fv = cw.visitField(ACC_PROTECTED, "location", "Lcom/ibm/layout/Location;", null, null);
 			fv.visitEnd();
 		}
-		
 		{
 			mv = cw.visitMethod(ACC_PUBLIC, "bindLocation",
 					"(Lcom/ibm/layout/Location;)V", null, null);

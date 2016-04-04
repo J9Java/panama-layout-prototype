@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -10,6 +10,7 @@ package com.ibm.layout;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
@@ -63,6 +64,8 @@ public final class LayoutHelper {
 							inst.genArray1DImpl((Class<? extends Layout>)actualType);
 						} else if (((ParameterizedType)t).getRawType().toString().contains("2D")) {
 							inst.genArray2DImpl((Class<? extends Layout>)actualType);
+						}  else if (((ParameterizedType)t).getRawType().toString().contains("VLA")) {
+							inst.genVLAImpl((Class<? extends Layout>)actualType, (Class<? extends Layout>)interfaceClass);
 						}
 					}
 				} else {
@@ -135,6 +138,30 @@ public final class LayoutHelper {
 		}
 
 		@SuppressWarnings("unchecked")
+		<E extends Layout, AE extends VLArray<E>, EE extends Layout> 
+		Class<AE> loadVLAClass(Class<E> elementInterfaceClass, Class<AE> userDefinedArrayClass, Class<EE> enclosingClass) throws Exception
+		{
+			String arrayInterfaceClassName;
+			//Load element class
+			@SuppressWarnings("unused")
+			Class<E> elementCls = genLayoutImpl(elementInterfaceClass);
+			
+			if (null == userDefinedArrayClass) {
+				arrayInterfaceClassName = getVLAImplClassName(elementInterfaceClass);
+			} else {
+				arrayInterfaceClassName = getVLAImplClassName(userDefinedArrayClass);
+			}
+			
+			Class<AE> implClass = (Class<AE>)findLoadedClass(arrayInterfaceClassName);
+			if (null == implClass) {
+				GenVLArray generator = new GenVLArray(elementInterfaceClass, userDefinedArrayClass);
+				byte[] bytes = generator.genBytecode();
+				implClass = (Class<AE>)defineClass(null, bytes, 0, bytes.length);
+			}
+			return implClass;
+		}
+		
+		@SuppressWarnings("unchecked")
 		<AE extends LayoutType> 
 		Class<AE> loadPrim1DClass(Class<?> elementInterfaceClass, Class<AE> userDefinedArrayClass) throws Exception
 		{
@@ -166,6 +193,10 @@ public final class LayoutHelper {
 
 	private ImplClassLoader implClassloader = new ImplClassLoader();
 
+	static String getVLAImplClassName(Class<? extends LayoutType> cls) {
+		return "com.ibm.layout.gen." + cls.getSimpleName() + "VLArrayImpl";
+	}
+	
 	static String getImplClassName(Class<? extends LayoutType> cls) {
 		return "com.ibm.layout.gen." + cls.getSimpleName() + "Impl";
 	}
@@ -240,7 +271,10 @@ public final class LayoutHelper {
 			Class<T> implCls = (Class<T>)implClassloader.loadLayoutClass(interfaceCls);
 			
 			unsafe.ensureClassInitialized(implCls);
-
+			
+			Field f = implCls.getDeclaredField("unsafe");
+			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+			
 			return implCls;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -261,6 +295,9 @@ public final class LayoutHelper {
 			Class<T> implCls = (Class<T>)implClassloader.loadPrimArrayClass(className);
 			unsafe.ensureClassInitialized(implCls);
 
+			Field f = implCls.getDeclaredField("unsafe");
+			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+			
 			return implCls;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -296,11 +333,53 @@ public final class LayoutHelper {
 			Class<AE> implCls = implClassloader.load1DClass(elementInterfaceClass, userDefinedArrayClass);
 			unsafe.ensureClassInitialized(implCls);
 			
+			Field f = implCls.getDeclaredField("unsafe");
+			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+			
 			return implCls;
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		return null;
+	}
+	
+	/**
+	 * Create a VLA class from user defined Layout
+	 * 
+	 * @param <AE> subclass of Layout
+	 * @param <E> element type
+	 * @param elementInterfaceClass, the element type of the array
+	 * @param userDefinedArrayClass, user defined class
+	 * @return class
+	 */
+	public <E extends Layout, AE extends VLArray<E>, EE extends Layout> Class<AE> genVLAImpl(final Class<E> elementInterfaceClass,
+		final Class<AE> userDefinedArrayClass, final Class<EE> enclosingClass)
+	{
+		try {
+			Class<AE> implCls = implClassloader.loadVLAClass(elementInterfaceClass, userDefinedArrayClass, enclosingClass);
+			unsafe.ensureClassInitialized(implCls);
+			
+			Field f = implCls.getDeclaredField("unsafe");
+			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+			
+			return implCls;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	/**
+	 * Create a VLA class
+	 * 
+	 * @param <AE> subclass of Layout
+	 * @param <E> element type
+	 * @param elementInterfaceClass, the element type of the array
+	 * @param enclosingClass, the layout class that contains the VLA
+	 * @return variable sized array class
+	 */
+	public <E extends Layout, AE extends VLArray<E>, EE extends Layout> Class<AE> genVLAImpl(final Class<E> elementInterfaceClass, final Class<EE> enclosingClass) {
+		return genVLAImpl(elementInterfaceClass, null, enclosingClass);
 	}
 
 	/**
@@ -317,7 +396,10 @@ public final class LayoutHelper {
 			try {				
 				Class<AE> implCls = implClassloader.loadPrim1DClass(elementInterfaceClass, userDefinedArrayClass);
 				unsafe.ensureClassInitialized(implCls);
-
+				
+				Field f = implCls.getDeclaredField("unsafe");
+				unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+				
 				return implCls;
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -340,7 +422,9 @@ public final class LayoutHelper {
 			@SuppressWarnings("unchecked")
 			Class<Array2D<T>> implCls = (Class<Array2D<T>>)implClassloader.load2DClass(elementInterfaceClass);
 			unsafe.ensureClassInitialized(implCls);
-			
+			Field f = implCls.getDeclaredField("unsafe");
+			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
+
 			return implCls;
 		} catch (Exception e) {
 			e.printStackTrace();

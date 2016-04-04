@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -9,7 +9,6 @@ package com.ibm.layout.gen;
 
 import com.ibm.layout.ByteArray2D;
 import com.ibm.layout.LayoutTypeImpl;
-import com.ibm.layout.UnsafeHelper;
 
 import sun.misc.Unsafe;
 
@@ -17,7 +16,8 @@ import sun.misc.Unsafe;
  * Generated implementation of ByteArray2D
  */
 final class ByteArray2DImpl extends LayoutTypeImpl implements ByteArray2D {
-	private static final Unsafe unsafe = UnsafeHelper.getUnsafe();
+	private static final Unsafe unsafe = null;
+	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -62,5 +62,10 @@ final class ByteArray2DImpl extends LayoutTypeImpl implements ByteArray2D {
 		}
 		sb.append(" ]");
 		return sb.toString();
+	}
+	
+	@Override
+	public boolean containsVLA() {
+		return false;
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -19,6 +19,7 @@ class Variable {
 	public static String allVariableName = " ";
 	public static long totalSize = 0;
 	public boolean isPrimArray = false;
+	public String repeatCountField = null;
 
 	/**
 	 * Constructor.
@@ -27,12 +28,13 @@ class Variable {
 	 * @param arraySizes an <code>int[]</code> that represents the size of a variable.
 	 * @param isPrimArray <code>true</code> if the variable is a primitive array.
 	 */
-	private Variable(String name, String type, int[] arraySizes, boolean isPrimArray, int size) {
+	private Variable(String name, String type, int[] arraySizes, boolean isPrimArray, int size, String repeatCountField) {
 		this.name = name;
 		this.type = type;
 		this.arraySizes = arraySizes;
 		this.isPrimArray = isPrimArray;
 		this.size = size;
+		this.repeatCountField = repeatCountField;
 		Variable.allVariableName += (name + " ");
 	}
 
@@ -44,6 +46,14 @@ class Variable {
 		return type;
 	}
 
+	/**
+	 * Getter for repeat count field.
+	 * @return a <code>String</code> that returns the name of the repeat count field for this VLA.
+	 */
+	public String getRepeatCountField() {
+		return this.repeatCountField;
+	}
+	
 	/**
 	 * Getter for field name.
 	 * @return a <code>String</code> that returns variable name.
@@ -80,6 +90,7 @@ class Variable {
 		String[] variable = line.split(":");
 		String variable_type = variable[1];
 		String variable_name = variable[0];
+		String repeatCountField = null;
 		ArrayList<Integer> sizes = new ArrayList<Integer>();
 
 		//Treat unsigned type as signed type
@@ -88,12 +99,12 @@ class Variable {
 		}
 
 		if (Helper.isArrayUnsupported(variable_type)) {
-			System.out.println("Does not suuport 3D array or higher dimension at line: " + Helper.getLineNumber());
+			System.out.println("Does not suuport 3D array or higher dimension in the following Layout declaration: " + line);
 			return null;
 		}
 
 		if (Helper.isFieldDup(variable_name)) {
-			System.out.println("Two or more variables have the same name! at line: " + Helper.getLineNumber());
+			System.out.println("Two or more variables have the same name! in the following Layout declaration: " + line);
 			return null;
 		}
 
@@ -110,14 +121,27 @@ class Variable {
 			sizes = new ArrayList<Integer>();
 			if (arrayPart.contains("[")) {
 				while (arrayPart.contains("[")) {
-					sizes.add(Integer.parseInt(arrayPart.substring(arrayPart.indexOf("[") + 1, arrayPart.indexOf("]"))));
+					String arraySize = arrayPart.substring(arrayPart.indexOf("[") + 1, arrayPart.indexOf("]"));
+					if (null != repeatCountField) {
+						throw new VerifierException("only single dimension VLAs are accepted");
+					}
+					if (Helper.isInteger(arraySize)) {
+						sizes.add(Integer.parseInt(arraySize));
+					} else {
+						/* VLA */
+						repeatCountField = arraySize;
+						if (!Helper.isFieldDup(repeatCountField)) {
+							throw new VerifierException("the repeatCountField '" + repeatCountField + "' for VLA '"
+									+ variable_name + "' does not exist or is not preceding the VLA");
+						}
+					}
 					arrayPart = variable_type.substring(arrayPart.indexOf("]") + 1, arrayPart.length());
 				}
 				variable_type = variable_type.substring(0, variable_type.indexOf("["));
 			}
 		}
 
-		Helper.testValidation(variable_name, variable_type);
+		Helper.testValidation(variable_name, variable_type, line);
 
 		//Convert jtype(eg. jint) to java primitive type
 		if (Helper.isJPrimitiveType(variable_type) && variable_type.contains("j")) {
@@ -129,7 +153,7 @@ class Variable {
 			return null;
 		}//leave c primitive type(eg. int/double) unimplement.
 
-		return new Variable(variable_name, variable_type, integerArrayListToIntArray(sizes), isPrim, size);
+		return new Variable(variable_name, variable_type, integerArrayListToIntArray(sizes), isPrim, size, repeatCountField);
 	}
 
 	/**
@@ -191,6 +215,14 @@ class Variable {
 	public String getPrim1DArrayGetter() {
 		return "public abstract " + toUpperCaseLetter(this.type) + "Array1D " + this.name + "();\n\n";
 	}
+	
+	/**
+	 * Convert current Variable class to an 1D primitive array getter in a Java abstract class .
+	 * @return a <code>String</code> that defines an 1D primitive array getter in a Java abstract class.
+	 */
+	public String getVLAGetter() {
+		return "public abstract " + "VLArray<" + this.type + "> " + this.name + "();\n\n";
+	}
 
 	/**
 	 * Convert current Variable class to an 2D primitive array getter in a Java abstract class .
@@ -243,8 +275,12 @@ class Variable {
 	 */
 	public String convertToLD() {
 		String arrayPart = "";
-		for (int i : arraySizes) {
-			arrayPart += ("[" + i + "]");
+		if (null == repeatCountField) {
+			for (int i : arraySizes) {
+				arrayPart += ("[" + i + "]");
+			}
+		} else {
+			arrayPart += ("[" + repeatCountField + "]");
 		}
 		return "\"" + this.name + ":" + (Helper.isJPrimitiveType(this.type) ? ("j" + this.type) : this.type)
 				+ arrayPart + ":" + (this.type.equals("Pointer") ? "pointer" : this.size) + "\"";

@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -38,7 +38,13 @@ public class Parser {
 		String cursor = new String();
 
 		while (fileReader.hasNext()) {
-			cursor = fileReader.nextLine();
+			cursor = "";
+			do {
+				cursor += fileReader.nextLine();
+			} while(!cursor.contains(";"));
+			
+			cursor = cursor.substring(0,  cursor.length() - 1);
+			
 			String[] variables = cursor.split(",");
 			variables = removeUnuseful(variables);
 			if (!variables[0].contains(":")) {
@@ -149,9 +155,9 @@ public class Parser {
 			System.out.println("Parsing Successful!");
 		} catch (IllegalArgumentException e) {
 			if (args.length < 2) {
-				System.out.println("too few argumenets");
+				System.out.println("too few arguments");
 			} else if (args.length > 2) {
-				System.out.println("too many argumenets");
+				System.out.println("too many arguments");
 			}
 		} catch (FileNotFoundException e) {
 			System.out.println(args[0] + " not found!\nParsing Failed!\n");

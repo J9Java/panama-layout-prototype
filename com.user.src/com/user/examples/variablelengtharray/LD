@@ -1,0 +1,8 @@
+"ArrayElement",
+"item1:jint:4",
+"item2:jint:4";
+
+"VariableLengthArray",
+"lengthOfArray:jint:4",
+"elements:ArrayElement[lengthOfArray]:0";
+

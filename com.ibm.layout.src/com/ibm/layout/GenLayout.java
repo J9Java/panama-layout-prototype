@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -9,6 +9,7 @@ package com.ibm.layout;
 
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -50,6 +51,7 @@ class GenLayout implements Opcodes {
 		FieldVisitor fv = null;
 		MethodVisitor mv = null;
 		ImplHelper.FieldDesc[] fieldDesc = ImplHelper.getFieldDesc(clazz);
+		boolean isVariableLengthLayout = false;
 		final boolean itf = false;
 		
 		{
@@ -103,6 +105,71 @@ class GenLayout implements Opcodes {
 					}
 					mv.visitMaxs(6, 1);
 					mv.visitEnd();
+				} else if (fieldDesc[i].repeatCountMember != null) {
+					{
+						isVariableLengthLayout = true;
+						ImplHelper.FieldDesc repeatCountField = ImplHelper.findField(fieldDesc[i].repeatCountMember, fieldDesc);
+						mv = cw.visitMethod(ACC_PUBLIC, fieldDesc[i].name, "()" + fieldDesc[i].sig, "()" + fieldDesc[i].elementImpl, null);
+						mv.visitCode();
+						if ("" != fieldDesc[i].elementImpl) {
+							mv.visitTypeInsn(NEW, fieldDesc[i].elementImpl);
+							mv.visitInsn(DUP);
+							mv.visitMethodInsn(INVOKESPECIAL, fieldDesc[i].elementImpl, "<init>", "()V", false);
+							mv.visitVarInsn(ASTORE, 1);
+							mv.visitTypeInsn(NEW, fieldDesc[i].impl);
+							mv.visitInsn(DUP);
+							mv.visitVarInsn(ALOAD, 0);
+							mv.visitMethodInsn(INVOKEVIRTUAL, implClassName, fieldDesc[i].repeatCountMember, "()" + repeatCountField.sig, false);
+							if (!repeatCountField.sig.equals("J")) {
+								mv.visitInsn(I2L);
+							}
+							mv.visitVarInsn(ALOAD, 1);
+							mv.visitMethodInsn(INVOKEVIRTUAL, fieldDesc[i].elementImpl, "sizeof", "()J", false);
+							mv.visitMethodInsn(INVOKESPECIAL, fieldDesc[i].impl, "<init>", "(JJ)V", false);
+							mv.visitVarInsn(ASTORE, 2);
+							mv.visitTypeInsn(NEW, "com/ibm/layout/Location");
+							mv.visitInsn(DUP);
+							mv.visitVarInsn(ALOAD, 0);
+							mv.visitFieldInsn(GETFIELD, implClassName, "location", "Lcom/ibm/layout/Location;");
+							mv.visitLdcInsn(fieldDesc[i].offset);
+							mv.visitMethodInsn(INVOKESPECIAL, "com/ibm/layout/Location", "<init>", "(Lcom/ibm/layout/Location;J)V", false);
+							mv.visitVarInsn(ASTORE, 3);
+							mv.visitVarInsn(ALOAD, 2);
+							mv.visitVarInsn(ALOAD, 3);
+							mv.visitMethodInsn(INVOKEINTERFACE, "com/ibm/layout/VLArray", "bindLocation", "(Lcom/ibm/layout/Location;)V", true);
+							mv.visitVarInsn(ALOAD, 2);
+							mv.visitInsn(ARETURN);
+							mv.visitMaxs(6, 4);
+							mv.visitEnd();
+						} else {
+							throw new RuntimeException("primitive VLAs are unsupported");
+						}
+						{
+							mv = cw.visitMethod(ACC_PUBLIC, "bindLocation", "(Lcom/ibm/layout/Location;" + repeatCountField.sig + ")V", null, new String[] { "java/lang/UnsupportedOperationException" });
+							mv.visitCode();
+							mv.visitVarInsn(ALOAD, 1);
+							mv.visitVarInsn(ALOAD, 0);
+							mv.visitMethodInsn(INVOKEVIRTUAL, implClassName, "sizeof", "()J", false);
+							mv.visitMethodInsn(INVOKEVIRTUAL, "com/ibm/layout/Location", "checkDataFits", "(J)Z", false);
+							Label l0 = new Label();
+							mv.visitJumpInsn(IFEQ, l0);
+							mv.visitVarInsn(ALOAD, 0);
+							mv.visitVarInsn(ALOAD, 1);
+							mv.visitFieldInsn(PUTFIELD, implClassName, "location", "Lcom/ibm/layout/Location;");
+							mv.visitLabel(l0);
+							mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+							mv.visitVarInsn(ALOAD, 0);
+							if (repeatCountField.sig.equals("J")) {
+								mv.visitVarInsn(LLOAD, 2);
+							} else {
+								mv.visitVarInsn(ILOAD, 2);
+							}
+							mv.visitMethodInsn(INVOKEVIRTUAL, implClassName, fieldDesc[i].repeatCountMember, "(" + repeatCountField.sig + ")V", false);
+							mv.visitInsn(RETURN);
+							mv.visitMaxs(3, 3);
+							mv.visitEnd();
+						}
+					}
 				} else if (fieldDesc[i].dims == null) {
 					/* nested field */
 					mv = cw.visitMethod(ACC_PUBLIC, fieldDesc[i].name, "()" + fieldDesc[i].sig, null, null);
@@ -316,7 +383,7 @@ class GenLayout implements Opcodes {
 			mv.visitEnd();
 		}
 		
-		ImplHelper.genLayoutTypeImpl(cw, mv, fv, implClassName);
+		ImplHelper.genLayoutTypeImpl(cw, mv, fv, implClassName, isVariableLengthLayout);
 		ImplHelper.getLayoutImpl(cw, mv, implClassName);
 		
 		cw.visitEnd();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -10,7 +10,6 @@ package com.ibm.layout.gen;
 import com.ibm.layout.BooleanArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
-import com.ibm.layout.UnsafeHelper;
 
 import sun.misc.Unsafe;
 
@@ -18,7 +17,8 @@ import sun.misc.Unsafe;
  * Generated implementation of BooleanArray1D
  */
 final class BooleanArray1DImpl extends LayoutTypeImpl implements BooleanArray1D {
-	private static final Unsafe unsafe = UnsafeHelper.getUnsafe();
+	private static final Unsafe unsafe = null;
+	
 	protected final long length;
 	
 	protected BooleanArray1DImpl(long length) {
@@ -61,5 +61,10 @@ final class BooleanArray1DImpl extends LayoutTypeImpl implements BooleanArray1D 
 		}
 		sb.append(" ]");
 		return sb.toString();
+	}
+
+	@Override
+	public boolean containsVLA() {
+		return false;
 	}
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2015 IBM Corporation.
+ *  Copyright (c) 2015, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -16,7 +16,7 @@ import sun.misc.Unsafe;
  * Encapsulates all unsafe operations
  *
  */
-public final class UnsafeHelper {
+final class UnsafeHelper {
 	static Unsafe unsafe;
 	static private boolean isNativeLibLoaded = false;
 	static final String libraryNotFoundMessage = "The layouts library was not found in the java.library.path.\n" 

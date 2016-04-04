@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -18,12 +18,27 @@ import sun.misc.Unsafe;
 
 import com.ibm.layout.Array1D;
 import com.ibm.layout.Array2D;
+import com.ibm.layout.BooleanArray1D;
+import com.ibm.layout.BooleanArray2D;
 import com.ibm.layout.ByteArray1D;
+import com.ibm.layout.ByteArray2D;
+import com.ibm.layout.CharArray1D;
+import com.ibm.layout.CharArray2D;
+import com.ibm.layout.DoubleArray1D;
+import com.ibm.layout.DoubleArray2D;
+import com.ibm.layout.FloatArray1D;
+import com.ibm.layout.FloatArray2D;
+import com.ibm.layout.IntArray1D;
 import com.ibm.layout.IntArray2D;
 import com.ibm.layout.Layout;
 import com.ibm.layout.LayoutHelper;
 import com.ibm.layout.LayoutType;
 import com.ibm.layout.Location;
+import com.ibm.layout.LongArray1D;
+import com.ibm.layout.LongArray2D;
+import com.ibm.layout.ShortArray1D;
+import com.ibm.layout.ShortArray2D;
+import com.user.types.ArrayElement;
 import com.user.types.AllPoints;
 import com.user.types.ArrayCases;
 import com.user.types.Boolean;
@@ -63,12 +78,19 @@ import com.user.types.Point5D_Ext;
 import com.user.types.Ptr;
 import com.user.types.Ptr2;
 import com.user.types.Short;
+import com.user.types.VariableLengthArrayWithByteRepeatCount;
+import com.user.types.VariableLengthArrayWithCharRepeatCount;
+import com.user.types.VariableLengthArrayWithIntRepeatCount;
+import com.user.types.VariableLengthArrayWithLongRepeatCount;
+import com.user.types.VariableLengthArrayWithShortRepeatCount;
 
 
 public class TestLayout {
 	static LayoutHelper f = LayoutHelper.getFactory();
 	static Unsafe unsafe = null;
-
+	static final int SIZE_OF_VLA1 = 10;
+	static final int SIZE_OF_VLA2 = 5;
+			
 	static {
 		try {
 			Field field = Unsafe.class.getDeclaredField("theUnsafe");
@@ -80,11 +102,13 @@ public class TestLayout {
 	}
 	
 	@Test
-	public void testPrimArray() {
+	public void testPrimByteArray() {
 		ByteArray1D bb = LayoutType.getPrimArray1D(byte.class, 10);
+		ByteArray2D bb2 = LayoutType.getPrimArray2D(byte.class, 2, 5);
 		Location loc = new Location(new byte[(int)(bb.getLength())]);
 		//switching to map APIla
 		bb.bindLocation(loc);
+		bb2.bindLocation(loc);
 		for (long i = 0; i < bb.getLength(); i++) {
 			bb.put(i, (byte)(i + 3));
 		}
@@ -92,9 +116,207 @@ public class TestLayout {
 		for (long i = 0; i < bb.getLength(); i++) {
 			assertTrue(bb.at(i) == (byte)(i + 3));
 		}
-
+		
+		for (long i = 0; i < bb2.dim1(); i++) {
+			for (long j = 0; j < bb2.dim2(); j++) {
+				assertTrue(bb2.at(i, j) == (byte)(j + (i * bb2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(bb.containsVLA());
+		assertFalse(bb2.containsVLA());
 	}
+	
+	@Test
+	public void testPrimCharArray() {
+		CharArray1D cc = LayoutType.getPrimArray1D(char.class, 10);
+		CharArray2D cc2 = LayoutType.getPrimArray2D(char.class, 2, 5);
+		Location loc = new Location(new byte[(int)(cc.getLength() * 2)]);
+		//switching to map APIla
+		cc.bindLocation(loc);
+		cc2.bindLocation(loc);
+		for (long i = 0; i < cc.getLength(); i++) {
+			cc.put(i, (char)(i + 3));
+		}
 
+		for (long i = 0; i < cc.getLength(); i++) {
+			assertTrue(cc.at(i) == (char)(i + 3));
+		}
+		
+		for (long i = 0; i < cc2.dim1(); i++) {
+			for (long j = 0; j < cc2.dim2(); j++) {
+				assertTrue(cc2.at(i, j) == (char)(j + (i * cc2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(cc.containsVLA());
+		assertFalse(cc2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimIntArray() {
+		IntArray1D ii = LayoutType.getPrimArray1D(int.class, 10);
+		IntArray2D ii2 = LayoutType.getPrimArray2D(int.class, 2, 5);
+		Location loc = new Location(new byte[(int)(ii.getLength() * 4)]);
+		//switching to map APIla
+		ii.bindLocation(loc);
+		ii2.bindLocation(loc);
+		for (long i = 0; i < ii.getLength(); i++) {
+			ii.put(i, (int)(i + 3));
+		}
+
+		for (long i = 0; i < ii.getLength(); i++) {
+			assertTrue(ii.at(i) == (int)(i + 3));
+		}
+		
+		for (long i = 0; i < ii2.dim1(); i++) {
+			for (long j = 0; j < ii2.dim2(); j++) {
+				assertTrue(ii2.at(i, j) == (int)(j + (i * ii2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(ii.containsVLA());
+		assertFalse(ii2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimShortArray() {
+		ShortArray1D ss = LayoutType.getPrimArray1D(short.class, 10);
+		ShortArray2D ss2 = LayoutType.getPrimArray2D(short.class, 2, 5);
+		Location loc = new Location(new byte[(short)(ss.getLength() * 2)]);
+		//switching to map APIla
+		ss.bindLocation(loc);
+		ss2.bindLocation(loc);
+		for (long i = 0; i < ss.getLength(); i++) {
+			ss.put(i, (short)(i + 3));
+		}
+
+		for (long i = 0; i < ss.getLength(); i++) {
+			assertTrue(ss.at(i) == (short)(i + 3));
+		}
+		
+		for (long i = 0; i < ss2.dim1(); i++) {
+			for (long j = 0; j < ss2.dim2(); j++) {
+				assertTrue(ss2.at(i, j) == (short)(j + (i * ss2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(ss.containsVLA());
+		assertFalse(ss2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimLongArray() {
+		LongArray1D ll = LayoutType.getPrimArray1D(long.class, 10);
+		LongArray2D ll2 = LayoutType.getPrimArray2D(long.class, 2, 5);
+		Location loc = new Location(new byte[(int)(ll.getLength() * 8)]);
+		//switching to map APIla
+		ll.bindLocation(loc);
+		ll2.bindLocation(loc);
+		for (long i = 0; i < ll.getLength(); i++) {
+			ll.put(i, (long)(i + 3));
+		}
+
+		for (long i = 0; i < ll.getLength(); i++) {
+			assertTrue(ll.at(i) == (long)(i + 3));
+		}
+		
+		for (long i = 0; i < ll2.dim1(); i++) {
+			for (long j = 0; j < ll2.dim2(); j++) {
+				assertTrue(ll2.at(i, j) == (long)(j + (i * ll2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(ll.containsVLA());
+		assertFalse(ll2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimFloatArray() {
+		FloatArray1D ff = LayoutType.getPrimArray1D(float.class, 10);
+		FloatArray2D ff2 = LayoutType.getPrimArray2D(float.class, 2, 5);
+		Location loc = new Location(new byte[(int)(ff.getLength() * 4)]);
+		//switching to map APIla
+		ff.bindLocation(loc);
+		ff2.bindLocation(loc);
+		for (long i = 0; i < ff.getLength(); i++) {
+			ff.put(i, (float)(i + 3));
+		}
+
+		for (long i = 0; i < ff.getLength(); i++) {
+			assertTrue(ff.at(i) == (float)(i + 3));
+		}
+		
+		for (long i = 0; i < ff2.dim1(); i++) {
+			for (long j = 0; j < ff2.dim2(); j++) {
+				assertTrue(ff2.at(i, j) == (float)(j + (i * ff2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(ff.containsVLA());
+		assertFalse(ff2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimDoubleArray() {
+		DoubleArray1D dd = LayoutType.getPrimArray1D(double.class, 10);
+		DoubleArray2D dd2 = LayoutType.getPrimArray2D(double.class, 2, 5);
+		Location loc = new Location(new byte[(int)(dd.getLength() * 8)]);
+		//switching to map APIla
+		dd.bindLocation(loc);
+		dd2.bindLocation(loc);
+		for (long i = 0; i < dd.getLength(); i++) {
+			dd.put(i, (double)(i + 3));
+		}
+
+		for (long i = 0; i < dd.getLength(); i++) {
+			assertTrue(dd.at(i) == (double)(i + 3));
+		}
+		
+		for (long i = 0; i < dd2.dim1(); i++) {
+			for (long j = 0; j < dd2.dim2(); j++) {
+				assertTrue(dd2.at(i, j) == (double)(j + (i * dd2.dim2()) + 3));
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(dd.containsVLA());
+		assertFalse(dd2.containsVLA());
+	}
+	
+	@Test
+	public void testPrimBooleanArray() {
+		BooleanArray1D zz = LayoutType.getPrimArray1D(boolean.class, 10);
+		BooleanArray2D zz2 = LayoutType.getPrimArray2D(boolean.class, 2, 5);
+		Location loc = new Location(new byte[(int)(zz.getLength())]);
+		//switching to map APIla
+		zz.bindLocation(loc);
+		zz2.bindLocation(loc);
+		for (long i = 0; i < zz.getLength(); i++) {
+			zz.put(i, true);
+		}
+
+		for (long i = 0; i < zz.getLength(); i++) {
+			assertTrue(zz.at(i) == true);
+		}
+		
+		for (long i = 0; i < zz2.dim1(); i++) {
+			for (long j = 0; j < zz2.dim2(); j++) {
+				assertTrue(zz2.at(i, j) == true);
+			}
+		}
+		
+		//test containsVLA
+		assertFalse(zz.containsVLA());
+		assertFalse(zz2.containsVLA());
+	}
+	
 	@Test
 	public void testOnHeap() {
 
@@ -353,7 +575,7 @@ public class TestLayout {
 		IntM3 m3 = Layout.getLayout(IntM3.class);
 		loc = new Location(new byte[(int)(48 * m3.sizeof())]);
 		m3.bindLocation(loc);
-		// @todo-alin IllegalAccessError because the Impl class is loaded in different classloader
+		
 		IntArray2D m = m3.m();
 		System.out.println("m3 dim1 = " + m.dim1());
 		for (long i = 0; i < m3.m().dim1(); i++) {
@@ -1334,5 +1556,259 @@ public class TestLayout {
 		System.out.println();
 		assertTrue(bb.length() == bb.getLength());
 	}
+	
+	@Test
+	public void testVLAWithByteRepeatCount() {
+		System.out.println("== testVLAWithByteRepeatCount ==");
+		
+		//create variable length array with repeatCountInitializer test
+		VariableLengthArrayWithByteRepeatCount vla = Layout.getLayout(VariableLengthArrayWithByteRepeatCount.class);
+		//sizeof(jbyte) + sizeof(ArrayElement)*SIZE_OF_VLA1
+		ArrayElement element = Layout.getLayout(ArrayElement.class);
+		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(ptr), (byte) SIZE_OF_VLA1);
 
+		assertEquals((byte) SIZE_OF_VLA1, vla.lengthOfArray());
+		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
+
+		//overlay array on existing memory test
+		VariableLengthArrayWithByteRepeatCount vla2 = Layout.getLayout(VariableLengthArrayWithByteRepeatCount.class);
+		//sizeof(jbyte) + sizeof(ArrayElement)*SIZE_OF_VLA2
+		long ptr2 = unsafe.allocateMemory(4 + element.sizeof() * SIZE_OF_VLA2);
+		Location loc = new Location(ptr2);
+		//set lengthOfArray to 5
+		Byte lengthOfArray = Layout.getLayout(Byte.class);
+		lengthOfArray.bindLocation(loc);
+		lengthOfArray.value((byte) SIZE_OF_VLA2);
+		//overlay on memory
+		vla2.bindLocation(loc);
+		
+		assertEquals((byte) SIZE_OF_VLA2, vla2.lengthOfArray());
+		assertEquals((long)SIZE_OF_VLA2, vla2.elements().getVLALength());
+		
+		//Set array element
+		long ptr3 = unsafe.allocateMemory(element.sizeof());
+		element.bindLocation(new Location(ptr3));
+		element.item1(10);
+		element.item2(20);
+		vla.elements().put(0, element);
+		vla2.elements().put(0, element);
+		
+		assertEquals(element.item1(), vla.elements().at(0).item1());
+		assertEquals(element.item1(), vla2.elements().at(0).item1());
+		assertEquals(element.item2(), vla.elements().at(0).item2());
+		assertEquals(element.item2(), vla2.elements().at(0).item2());
+		
+		//test containsVLA
+		assertTrue(vla.containsVLA());
+		assertTrue(vla2.containsVLA());
+		assertFalse(vla.elements().containsVLA());
+		assertFalse(vla2.elements().containsVLA());
+		assertFalse(vla.elements().at(0).containsVLA());
+		assertFalse(vla2.elements().at(0).containsVLA());
+	}
+	
+	@Test
+	public void testVLAWithShortRepeatCount() {
+		System.out.println("== testVLAWithShortRepeatCount ==");
+		
+		//create variable length array with repeatCountInitializer test
+		VariableLengthArrayWithShortRepeatCount vla = Layout.getLayout(VariableLengthArrayWithShortRepeatCount.class);
+		//sizeof(jshort) + sizeof(ArrayElement)*SIZE_OF_VLA1
+		ArrayElement element = Layout.getLayout(ArrayElement.class);
+		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(ptr), (short) SIZE_OF_VLA1);
+
+		assertEquals((char) SIZE_OF_VLA1, vla.lengthOfArray());
+		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
+
+		//overlay array on existing memory test
+		VariableLengthArrayWithShortRepeatCount vla2 = Layout.getLayout(VariableLengthArrayWithShortRepeatCount.class);
+		//sizeof(jshort) + sizeof(ArrayElement)*SIZE_OF_VLA2
+		long ptr2 = unsafe.allocateMemory(4 + element.sizeof() * SIZE_OF_VLA2);
+		Location loc = new Location(ptr2);
+		//set lengthOfArray to 5
+		Short lengthOfArray = Layout.getLayout(Short.class);
+		lengthOfArray.bindLocation(loc);
+		lengthOfArray.value((short) SIZE_OF_VLA2);
+		//overlay on existing memory
+		vla2.bindLocation(loc);
+		
+		assertEquals((short) SIZE_OF_VLA2, vla2.lengthOfArray());
+		assertEquals((long)SIZE_OF_VLA2, vla2.elements().getVLALength());
+		
+		//Set array element test
+		long ptr3 = unsafe.allocateMemory(element.sizeof());
+		element.bindLocation(new Location(ptr3));
+		element.item1(10);
+		element.item2(20);
+		vla.elements().put(0, element);
+		vla2.elements().put(0, element);
+		
+		assertEquals(element.item1(), vla.elements().at(0).item1());
+		assertEquals(element.item1(), vla2.elements().at(0).item1());
+		assertEquals(element.item2(), vla.elements().at(0).item2());
+		assertEquals(element.item2(), vla2.elements().at(0).item2());
+		
+		//test containsVLA
+		assertTrue(vla.containsVLA());
+		assertTrue(vla2.containsVLA());
+		assertFalse(vla.elements().containsVLA());
+		assertFalse(vla2.elements().containsVLA());
+		assertFalse(vla.elements().at(0).containsVLA());
+		assertFalse(vla2.elements().at(0).containsVLA());
+	}
+	
+	@Test
+	public void testVLAWithIntRepeatCount() {
+		System.out.println("== testVLAWithIntRepeatCount ==");
+		
+		//create variable length array with repeatCountInitializer test
+		VariableLengthArrayWithIntRepeatCount vla = Layout.getLayout(VariableLengthArrayWithIntRepeatCount.class);
+		//sizeof(jint) + sizeof(ArrayElement)*SIZE_OF_VLA1
+		ArrayElement element = Layout.getLayout(ArrayElement.class);
+		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(ptr), (int) SIZE_OF_VLA1);
+
+		assertEquals((int) SIZE_OF_VLA1, vla.lengthOfArray());
+		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
+
+		//overlay array on existing memory test
+		VariableLengthArrayWithIntRepeatCount vla2 = Layout.getLayout(VariableLengthArrayWithIntRepeatCount.class);
+		//sizeof(jint) + sizeof(ArrayElement)*SIZE_OF_VLA2
+		long ptr2 = unsafe.allocateMemory(4 + element.sizeof() * SIZE_OF_VLA2);
+		Location loc = new Location(ptr2);
+		//set lengthOfArray to 5
+		Int lengthOfArray = Layout.getLayout(Int.class);
+		lengthOfArray.bindLocation(loc);
+		lengthOfArray.value((int) SIZE_OF_VLA2);
+		//overlay array on existing memory
+		vla2.bindLocation(loc);
+		
+		assertEquals((int) SIZE_OF_VLA2, vla2.lengthOfArray());
+		assertEquals((long)SIZE_OF_VLA2, vla2.elements().getVLALength());
+		
+		//Set array element test
+		long ptr3 = unsafe.allocateMemory(element.sizeof());
+		element.bindLocation(new Location(ptr3));
+		element.item1(10);
+		element.item2(20);
+		vla.elements().put(0, element);
+		vla2.elements().put(0, element);
+		
+		assertEquals(element.item1(), vla.elements().at(0).item1());
+		assertEquals(element.item1(), vla2.elements().at(0).item1());
+		assertEquals(element.item2(), vla.elements().at(0).item2());
+		assertEquals(element.item2(), vla2.elements().at(0).item2());
+		
+		//test containsVLA
+		assertTrue(vla.containsVLA());
+		assertTrue(vla2.containsVLA());
+		assertFalse(vla.elements().containsVLA());
+		assertFalse(vla2.elements().containsVLA());
+		assertFalse(vla.elements().at(0).containsVLA());
+		assertFalse(vla2.elements().at(0).containsVLA());
+	}
+	
+	@Test
+	public void testVLAWithLongRepeatCount() {
+		System.out.println("== testVLAWithLongRepeatCount ==");
+		
+		//create variable length array with repeatCountInitializer test
+		VariableLengthArrayWithLongRepeatCount vla = Layout.getLayout(VariableLengthArrayWithLongRepeatCount.class);
+		//sizeof(jlong) + sizeof(ArrayElement)*SIZE_OF_VLA1
+		ArrayElement element = Layout.getLayout(ArrayElement.class);
+		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(ptr), (long) SIZE_OF_VLA1);
+
+		assertEquals((long) SIZE_OF_VLA1, vla.lengthOfArray());
+		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
+
+		//overlay array on existing memory test
+		VariableLengthArrayWithLongRepeatCount vla2 = Layout.getLayout(VariableLengthArrayWithLongRepeatCount.class);
+		//sizeof(jlong) + sizeof(ArrayElement)*SIZE_OF_VLA2
+		long ptr2 = unsafe.allocateMemory(4 + element.sizeof() * SIZE_OF_VLA2);
+		Location loc = new Location(ptr2);
+		//set lengthOfArray to 5
+		Long lengthOfArray = Layout.getLayout(Long.class);
+		lengthOfArray.bindLocation(loc);
+		lengthOfArray.value((long) SIZE_OF_VLA2);
+		//overlay array on existing memory
+		vla2.bindLocation(loc);
+		
+		assertEquals((long) SIZE_OF_VLA2, vla2.lengthOfArray());
+		assertEquals((long)SIZE_OF_VLA2, vla2.elements().getVLALength());
+		
+		//Set array element test
+		long ptr3 = unsafe.allocateMemory(element.sizeof());
+		element.bindLocation(new Location(ptr3));
+		element.item1(10);
+		element.item2(20);
+		vla.elements().put(0, element);
+		vla2.elements().put(0, element);
+		
+		assertEquals(element.item1(), vla.elements().at(0).item1());
+		assertEquals(element.item1(), vla2.elements().at(0).item1());
+		assertEquals(element.item2(), vla.elements().at(0).item2());
+		assertEquals(element.item2(), vla2.elements().at(0).item2());
+		
+		//test containsVLA
+		assertTrue(vla.containsVLA());
+		assertTrue(vla2.containsVLA());
+		assertFalse(vla.elements().containsVLA());
+		assertFalse(vla2.elements().containsVLA());
+		assertFalse(vla.elements().at(0).containsVLA());
+		assertFalse(vla2.elements().at(0).containsVLA());
+	}
+	
+	@Test
+	public void testVLAWithCharRepeatCount() {
+		System.out.println("== testVLAWithCharRepeatCount ==");
+		
+		//create variable length array with repeatCountInitializer test
+		VariableLengthArrayWithCharRepeatCount vla = Layout.getLayout(VariableLengthArrayWithCharRepeatCount.class);
+		//sizeof(jchar) + sizeof(ArrayElement)*SIZE_OF_VLA1
+		ArrayElement element = Layout.getLayout(ArrayElement.class);
+		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(ptr), (char) SIZE_OF_VLA1);
+
+		assertEquals((char) SIZE_OF_VLA1, vla.lengthOfArray());
+		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
+
+		//overlay array on existing memory test
+		VariableLengthArrayWithCharRepeatCount vla2 = Layout.getLayout(VariableLengthArrayWithCharRepeatCount.class);
+		//sizeof(jchar) + sizeof(ArrayElement)*SIZE_OF_VLA2
+		long ptr2 = unsafe.allocateMemory(4 + element.sizeof() * SIZE_OF_VLA2);
+		Location loc = new Location(ptr2);
+		//set lengthOfArray to 5
+		Char lengthOfArray = Layout.getLayout(Char.class);
+		lengthOfArray.bindLocation(loc);
+		lengthOfArray.value((char) SIZE_OF_VLA2);
+		//overlay array on existing memory 
+		vla2.bindLocation(loc);
+		
+		assertEquals((char) SIZE_OF_VLA2, vla2.lengthOfArray());
+		assertEquals((long)SIZE_OF_VLA2, vla2.elements().getVLALength());
+		
+		//Set array element test
+		long ptr3 = unsafe.allocateMemory(element.sizeof());
+		element.bindLocation(new Location(ptr3));
+		element.item1(10);
+		element.item2(20);
+		vla.elements().put(0, element);
+		vla2.elements().put(0, element);
+		
+		assertEquals(element.item1(), vla.elements().at(0).item1());
+		assertEquals(element.item1(), vla2.elements().at(0).item1());
+		assertEquals(element.item2(), vla.elements().at(0).item2());
+		assertEquals(element.item2(), vla2.elements().at(0).item2());
+		
+		//test containsVLA
+		assertTrue(vla.containsVLA());
+		assertTrue(vla2.containsVLA());
+		assertFalse(vla.elements().containsVLA());
+		assertFalse(vla2.elements().containsVLA());
+		assertFalse(vla.elements().at(0).containsVLA());
+		assertFalse(vla2.elements().at(0).containsVLA());
+	}
 }
