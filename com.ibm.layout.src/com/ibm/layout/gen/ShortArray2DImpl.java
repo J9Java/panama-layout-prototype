@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.ShortArray2D;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of ShortArray2D
  */
 final class ShortArray2DImpl extends LayoutTypeImpl implements ShortArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 	
@@ -28,12 +24,12 @@ final class ShortArray2DImpl extends LayoutTypeImpl implements ShortArray2D {
 
 	@Override
 	public short at(long i, long j) {
-		return unsafe.getShort(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2);
+		return UnsafeImplHelper.loadNativeShort(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2);
 	}
 
 	@Override
 	public void put(long i, long j, short val) {
-		unsafe.putShort(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2, val);
+		UnsafeImplHelper.storeNativeShort(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2, val);
 	}
 	
 	public long dim1() {

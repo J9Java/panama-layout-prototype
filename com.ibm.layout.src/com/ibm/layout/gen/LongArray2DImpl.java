@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.LongArray2D;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of LongArray2D
  */
-final class LongArray2DImpl extends LayoutTypeImpl implements LongArray2D {
-	private static final Unsafe unsafe = null;
-	
+final class LongArray2DImpl extends LayoutTypeImpl implements LongArray2D {	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -28,12 +24,12 @@ final class LongArray2DImpl extends LayoutTypeImpl implements LongArray2D {
 
 	@Override
 	public long at(long i, long j) {
-		return unsafe.getLong(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8);
+		return UnsafeImplHelper.loadNativeLong(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8);
 	}
 
 	@Override
 	public void put(long i, long j, long val) {
-		unsafe.putLong(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8, val);
+		UnsafeImplHelper.storeNativeLong(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8, val);
 	}
 	
 	public final long dim1() {

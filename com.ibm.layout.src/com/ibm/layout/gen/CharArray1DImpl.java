@@ -11,14 +11,10 @@ import com.ibm.layout.CharArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of CharArray1D
  */
-final class CharArray1DImpl extends LayoutTypeImpl implements CharArray1D {
-	private static final Unsafe unsafe = null;
-	
+final class CharArray1DImpl extends LayoutTypeImpl implements CharArray1D {	
 	protected final long length;
 	
 	protected CharArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class CharArray1DImpl extends LayoutTypeImpl implements CharArray1D {
 
 	@Override
 	public char at(long index) {
-		return unsafe.getChar(this.location.getData(), this.location.getOffset() + index * 2);
+		return UnsafeImplHelper.loadNativeChar(this.location.getData(), this.location.getOffset() + index * 2);
 	}
 
 	@Override
 	public void put(long index, char value) {
-		unsafe.putChar(this.location.getData(), this.location.getOffset() + index * 2, value);
+		UnsafeImplHelper.storeNativeChar(this.location.getData(), this.location.getOffset() + index * 2, value);
 	}
 
 	@Override

@@ -47,7 +47,7 @@ COMPILING LAYOUT RUNTIME:
 COMPILING EXAMPLE AND JUNIT TESTS:
 1) cd $workspaceDir/com.user.src
 
-2) javac -cp $workspaceDir/com.ibm.layout.bin:$workspaceDir/junit-4.10.jar -d $workspaceDir/com.user.bin com/user/types/*.java com/user/examples/myline/*.java com/user/examples/variablelengtharray/*.java com/user/test/*.java
+2) javac -cp $workspaceDir/com.ibm.layout.bin:$workspaceDir/junit-4.10.jar -d $workspaceDir/com.user.bin com/user/types/*.java com/user/examples/myline/*.java com/user/examples/variablelengtharray/*.java com/user/examples/javaclassfile/*.java com/user/test/*.java
 # some versions of javac may output several warnings of this type: "warning: Unsafe is internal proprietary API and may be removed in a future release"
 # these can be ignored
 
@@ -83,6 +83,24 @@ lengthOfArray field is 10
 length of VLArray is 10
 lengthOfArray field is 5
 length of VLArray is 5
+
+RUNNING TESTJAVACLASSFILEREADER
+This test demonstrates a more complex use of the variable length arrays
+1) java -cp $workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin:$workspaceDir/asm-all-5.0.jar com.user.examples.javaclassfile.JavaClassFileReader $workspaceDir/com.user.bin/com/user/examples/javaclassfile/SampleClass.class
+Sample output:
+printing C:\workspaces\layout3\panama-layout-prototype\com.user.bin\com\user\examples\javaclassfile\SampleClass.class
+Magic: cafebabe
+Minor: 0
+Major: 52
+ConstantPoolCount: 97
+
+ConstantPool:
+#1 = Class 		 #2					//com/user/examples/javaclassfile/SampleClass
+#2 = Utf8 		com/user/examples/javaclassfile/SampleClass
+#3 = Class 		 #4					//java/lang/Object
+#4 = Utf8 		java/lang/Object
+#5 = Utf8 		field1
+#6 = Utf8 		I
 
 RUNNING JUNIT TESTS (from commandline):
 1) java -cp $workspaceDir/junit-4.10.jar:$workspaceDir/asm-all-5.0.jar:$workspaceDir/com.user.bin:$workspaceDir/com.ibm.layout.bin org.junit.runner.JUnitCore com.user.test.TestLayout

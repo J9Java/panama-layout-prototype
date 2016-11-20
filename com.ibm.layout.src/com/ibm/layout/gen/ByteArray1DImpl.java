@@ -11,14 +11,10 @@ import com.ibm.layout.ByteArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of ByteArray1D
  */
-final class ByteArray1DImpl extends LayoutTypeImpl implements ByteArray1D {
-	private static final Unsafe unsafe = null;
-	
+final class ByteArray1DImpl extends LayoutTypeImpl implements ByteArray1D {	
 	protected final long length;
 	
 	public ByteArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class ByteArray1DImpl extends LayoutTypeImpl implements ByteArray1D {
 
 	@Override
 	public byte at(long index) {
-		return unsafe.getByte(this.location.getData(), this.location.getOffset() + index);
+		return UnsafeImplHelper.loadNativeByte(this.location.getData(), this.location.getOffset() + index);
 	}
 
 	@Override
 	public void put(long index, byte value) {
-		unsafe.putByte(this.location.getData(), this.location.getOffset() + index, value);
+		UnsafeImplHelper.storeNativeByte(this.location.getData(), this.location.getOffset() + index, value);
 	}
 
 	@Override

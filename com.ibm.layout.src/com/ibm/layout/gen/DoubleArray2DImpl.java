@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.DoubleArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of DoubleArray2D
  */
 final class DoubleArray2DImpl extends LayoutTypeImpl implements DoubleArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -28,12 +24,12 @@ final class DoubleArray2DImpl extends LayoutTypeImpl implements DoubleArray2D {
 
 	@Override
 	public double at(long i, long j) {
-		return unsafe.getDouble(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8);
+		return UnsafeImplHelper.loadNativeDouble(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8);
 	}
 
 	@Override
 	public void put(long i, long j, double val) {
-		unsafe.putDouble(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8, val);
+		UnsafeImplHelper.storeNativeDouble(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 8, val);
 	}
 
 	public final long dim1() {

@@ -20,6 +20,8 @@ class Variable {
 	public static long totalSize = 0;
 	public boolean isPrimArray = false;
 	public String repeatCountField = null;
+	private String userClass = null;
+	public String primitivePointer = null;
 
 	/**
 	 * Constructor.
@@ -28,12 +30,13 @@ class Variable {
 	 * @param arraySizes an <code>int[]</code> that represents the size of a variable.
 	 * @param isPrimArray <code>true</code> if the variable is a primitive array.
 	 */
-	private Variable(String name, String type, int[] arraySizes, boolean isPrimArray, int size, String repeatCountField) {
+	private Variable(String name, String type, int[] arraySizes, boolean isPrimArray, int size, String repeatCountField,String userClass) {
 		this.name = name;
 		this.type = type;
 		this.arraySizes = arraySizes;
 		this.isPrimArray = isPrimArray;
 		this.size = size;
+		this.userClass = userClass;
 		this.repeatCountField = repeatCountField;
 		Variable.allVariableName += (name + " ");
 	}
@@ -46,6 +49,10 @@ class Variable {
 		return type;
 	}
 
+	String getUserClass(){
+		return userClass;
+	}
+	
 	/**
 	 * Getter for repeat count field.
 	 * @return a <code>String</code> that returns the name of the repeat count field for this VLA.
@@ -91,6 +98,8 @@ class Variable {
 		String variable_type = variable[1];
 		String variable_name = variable[0];
 		String repeatCountField = null;
+		String userClass = null;
+		
 		ArrayList<Integer> sizes = new ArrayList<Integer>();
 
 		//Treat unsigned type as signed type
@@ -129,7 +138,15 @@ class Variable {
 						sizes.add(Integer.parseInt(arraySize));
 					} else {
 						/* VLA */
-						repeatCountField = arraySize;
+						if (!arraySize.contains(" ")) {
+							repeatCountField = arraySize;
+						} else {
+							/* VLA with user input */
+							String strs[] = arraySize.split(" ");
+							userClass = strs[0];
+							repeatCountField = strs[1];
+						}
+						
 						if (!Helper.isFieldDup(repeatCountField)) {
 							throw new VerifierException("the repeatCountField '" + repeatCountField + "' for VLA '"
 									+ variable_name + "' does not exist or is not preceding the VLA");
@@ -153,7 +170,7 @@ class Variable {
 			return null;
 		}//leave c primitive type(eg. int/double) unimplement.
 
-		return new Variable(variable_name, variable_type, integerArrayListToIntArray(sizes), isPrim, size, repeatCountField);
+		return new Variable(variable_name, variable_type, integerArrayListToIntArray(sizes), isPrim, size, repeatCountField, userClass);
 	}
 
 	/**
@@ -189,7 +206,7 @@ class Variable {
 	 * @return a <code>String</code> that defines a getter in a Java abstract class.
 	 */
 	public String getGetter() {
-		return "public abstract " + this.type + " " + this.name + "();\n\n";
+		return "public " + this.type + " " + this.name + "();\n\n";
 	}
 
 	/**
@@ -197,7 +214,7 @@ class Variable {
 	 * @return a <code>String</code> that defines an 1D array getter in a Java abstract class.
 	 */
 	public String get1DArrayGetter() {
-		return "public abstract Array1D<" + toUpperCaseLetter(this.type) + "> " + this.name + "();\n\n";
+		return "public Array1D<" + toUpperCaseLetter(this.type) + "> " + this.name + "();\n\n";
 	}
 
 	/**
@@ -205,7 +222,7 @@ class Variable {
 	 * @return a <code>String</code> that defines an 2D array getter in a Java abstract class.
 	 */
 	public String get2DArrayGetter() {
-		return "public abstract Array2D<" + toUpperCaseLetter(this.type) + "> " + this.name + "();\n\n";
+		return "public Array2D<" + toUpperCaseLetter(this.type) + "> " + this.name + "();\n\n";
 	}
 
 	/**
@@ -213,7 +230,7 @@ class Variable {
 	 * @return a <code>String</code> that defines an 1D primitive array getter in a Java abstract class.
 	 */
 	public String getPrim1DArrayGetter() {
-		return "public abstract " + toUpperCaseLetter(this.type) + "Array1D " + this.name + "();\n\n";
+		return "public " + toUpperCaseLetter(this.type) + "Array1D " + this.name + "();\n\n";
 	}
 	
 	/**
@@ -221,7 +238,7 @@ class Variable {
 	 * @return a <code>String</code> that defines an 1D primitive array getter in a Java abstract class.
 	 */
 	public String getVLAGetter() {
-		return "public abstract " + "VLArray<" + this.type + "> " + this.name + "();\n\n";
+		return "public " + ((this.userClass == null)  ? "VLArray<" : this.userClass + "<") + this.type + "> " + this.name + "();\n\n";
 	}
 
 	/**
@@ -229,7 +246,7 @@ class Variable {
 	 * @return a <code>String</code> that defines an 2D primitive array getter in a Java abstract class.
 	 */
 	public String getPrim2DArrayGetter() {
-		return "public abstract " + toUpperCaseLetter(this.type) + "Array2D " + this.name + "();\n\n";
+		return "public " + toUpperCaseLetter(this.type) + "Array2D " + this.name + "();\n\n";
 	}
 
 	/**
@@ -237,9 +254,19 @@ class Variable {
 	 * @return a <code>String</code> that defines a setter in a Java abstract class.
 	 */
 	public String getSetter() {
-		return "public abstract void " + this.name + "(" + this.type + " val" + ");\n\n";
+		return "public void " + this.name + "(" + this.type + " val" + ");\n\n";
 	}
 
+	String getEAGetter() {
+		String pointerType = "Pointer<" + this.type +"> ";
+		if (Helper.isJPrimitiveType(this.type)) {
+			pointerType = this.type.substring(0,1).toUpperCase() + this.type.substring(1) + "Pointer ";
+			this.primitivePointer = pointerType;
+		}
+		
+		return "\t\tpublic " + pointerType + this.name + "();\n\n";
+	}
+	
 	/**
 	 * Convert ArrayList to array, specifically for ArrayList<Integer> to int[].
 	 * @param list a ArrayList of Integer type.
@@ -273,7 +300,7 @@ class Variable {
 	 * Convert current variable to LD.
 	 * @return a <code>String</code> that contains the information of a variable.
 	 */
-	public String convertToLD() {
+	public String convertToLD(Endian endian) {
 		String arrayPart = "";
 		if (null == repeatCountField) {
 			for (int i : arraySizes) {
@@ -282,7 +309,7 @@ class Variable {
 		} else {
 			arrayPart += ("[" + repeatCountField + "]");
 		}
-		return "\"" + this.name + ":" + (Helper.isJPrimitiveType(this.type) ? ("j" + this.type) : this.type)
+		return "\"" + endian + this.name + ":" + (Helper.isJPrimitiveType(this.type) ? ("j" + this.type) : this.type)
 				+ arrayPart + ":" + (this.type.equals("Pointer") ? "pointer" : this.size) + "\"";
 	}
 }

@@ -17,8 +17,9 @@ import sun.misc.Unsafe;
  *
  */
 final class UnsafeHelper {
-	static Unsafe unsafe;
+	static Unsafe unsafe = getUnsafe();
 	static private boolean isNativeLibLoaded = false;
+	final static boolean isLE = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 	static final String libraryNotFoundMessage = "The layouts library was not found in the java.library.path.\n" 
 												 + "To use asByteBuffer(...) or fromByteBuffer(...) run your with"
 												 + "-Djava.library.path=[workspaceDir]/com.ibm.layoutS/jni_src";	
@@ -104,4 +105,5 @@ final class UnsafeHelper {
 		buffer.order(ByteOrder.nativeOrder());
 		return buffer;
 	}
+	
 }

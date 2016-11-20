@@ -75,9 +75,10 @@ import com.user.types.Point4D;
 import com.user.types.Point5D;
 import com.user.types.Point5D_DoubleExt;
 import com.user.types.Point5D_Ext;
-import com.user.types.Ptr;
-import com.user.types.Ptr2;
 import com.user.types.Short;
+import com.user.types.VLS1;
+import com.user.types.VLS3;
+import com.user.types.VLSLong3;
 import com.user.types.VariableLengthArrayWithByteRepeatCount;
 import com.user.types.VariableLengthArrayWithCharRepeatCount;
 import com.user.types.VariableLengthArrayWithIntRepeatCount;
@@ -998,72 +999,6 @@ public class TestLayout {
 	}
 
 	@Test
-	public void testPtr() {
-		Ptr ptr = Layout.getLayout(Ptr.class);
-		assertNotNull(ptr);
-	}
-
-	@Test
-	public void test1DArrayPtr() {
-		Array1D<Ptr> ptr = Array1D.getArray1D(Ptr.class, 5);
-		Location loc = new Location(new byte[(int)(ptr.getLength() * 0)]);
-		ptr.bindLocation(loc);
-	}
-
-	@Test
-	public void test2DArrayPtr() {
-		Array2D<Ptr> ptr = Array2D.getArray2D(Ptr.class, 2, 2);
-		Location loc = new Location(new byte[(int)(ptr.dim1() * ptr.dim2() * 0)]);
-		ptr.bindLocation(loc);
-	}
-
-	@Test
-	public void testPtr2() {
-		System.out.println("== testPtr2 ==");
-		Ptr2 ptr2 = Layout.getLayout(Ptr2.class);
-		Location loc = new Location(new byte[(int) (4 * 4)]);
-		ptr2.bindLocation(loc);
-		ptr2.z(5);
-		ptr2.z();
-		System.out.println(ptr2);
-	}
-
-	@Test
-	public void test1DArrayPtr2() {
-		System.out.println("== test1DArrayPtr2 ==");
-		Array1D<Ptr2> ptr2 = Array1D.getArray1D(Ptr2.class, 5);
-		Location loc = new Location(new byte[(int)(ptr2.getLength() * 4)]);
-		ptr2.bindLocation(loc);
-		for (int i = 0; i < ptr2.getLength(); i++) {
-			ptr2.at(i).z(i);
-		}
-		for (int i = 0; i < ptr2.getLength(); i++) {
-			assertEquals(i, ptr2.at(i).z());
-		}
-		System.out.println(ptr2);
-	}
-
-	@Test
-	public void test2DArrayPtr2() {
-		System.out.println("== test2DArrayPtr2 ==");
-		Array2D<Ptr2> ptr2 = Array2D.getArray2D(Ptr2.class, 3, 3);
-		Location loc = new Location(new byte[(int)(ptr2.dim1() * ptr2.dim2() * 4)]);
-		ptr2.bindLocation(loc);
-		for (int i = 0; i < ptr2.dim1(); i++) {
-			for (int j = 0; j < ptr2.dim2(); j++) {
-				ptr2.at(i, j).z(i + j);
-			}
-		}
-		for (int i = 0; i < ptr2.dim1(); i++) {
-			for (int j = 0; j < ptr2.dim2(); j++) {
-				assertEquals(i + j, ptr2.at(i, j).z());
-				System.out.print(ptr2.at(i, j) + " ");
-			}
-			System.out.println();
-		}
-	}
-	
-	@Test
 	public void testGetDoubleArray1DCharSeq() {
 		//test getPrimArray1DCharSeq() in Layout Factory for double array 1D
 		System.out.println("== testGetDoubleArray1DCharSeq ==");
@@ -1565,8 +1500,8 @@ public class TestLayout {
 		VariableLengthArrayWithByteRepeatCount vla = Layout.getLayout(VariableLengthArrayWithByteRepeatCount.class);
 		//sizeof(jbyte) + sizeof(ArrayElement)*SIZE_OF_VLA1
 		ArrayElement element = Layout.getLayout(ArrayElement.class);
-		long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
-		vla.bindLocation(new Location(ptr), (byte) SIZE_OF_VLA1);
+		//long ptr = unsafe.allocateMemory(1 + element.sizeof() * SIZE_OF_VLA1);
+		vla.bindLocation(new Location(new byte[(int) (1 + element.sizeof() * SIZE_OF_VLA1)]), (byte) SIZE_OF_VLA1);
 
 		assertEquals((byte) SIZE_OF_VLA1, vla.lengthOfArray());
 		assertEquals((long) SIZE_OF_VLA1, vla.elements().getVLALength());
@@ -1810,5 +1745,169 @@ public class TestLayout {
 		assertFalse(vla2.elements().containsVLA());
 		assertFalse(vla.elements().at(0).containsVLA());
 		assertFalse(vla2.elements().at(0).containsVLA());
+	}
+	
+	@Test
+	public void testMultipleVLAInLayout() {
+		System.out.println("== testMultipleVLAInLayout ==");
+		VLS1 layout = Layout.getLayout(VLS1.class);
+		byte[] data = {3,1,2,3,5,1,2,3,4,5,2,1,2};
+		layout.bindLocation(new Location(data));
+		
+		/* test repeatCout */
+		assertEquals(layout.b().getVLALength(), layout.a());
+		assertEquals(layout.d().getVLALength(), layout.c());
+		assertEquals(layout.f().getVLALength(), layout.e());
+		
+		assertEquals(3, layout.b().getVLALength());
+		assertEquals(5, layout.d().getVLALength());
+		assertEquals(2, layout.f().getVLALength());
+		
+		/* Test reads */
+		assertEquals(3, layout.b().at(2).value());
+		assertEquals(5, layout.d().at(4).value());
+		assertEquals(2, layout.f().at(1).value());
+		
+		/* Test writes */
+		Byte writeData = Layout.getLayout(Byte.class);
+		writeData.bindLocation(new Location(new byte []{-1}));
+		
+		layout.b().put(2, writeData);
+		layout.d().put(4, writeData);
+		layout.f().put(1, writeData);
+		
+		assertEquals(-1, layout.b().at(2).value());
+		assertEquals(-1, layout.d().at(4).value());
+		assertEquals(-1, layout.f().at(1).value());
+	}
+	
+	@Test
+	public void testMultipleVLAArraysInLayout() {
+		System.out.println("== testMultipleVLAArraysInLayout ==");
+		VLS3 layout = Layout.getLayout(VLS3.class);
+		byte[] data = {3,3,1,2,3,5,1,2,3,4,5,2,1,2,6};
+		layout.bindLocation(new Location(data));
+		
+		/* test repeatCout */
+		assertEquals(3, layout.d().getVLALength());
+		
+		assertEquals(layout.d().at(0).a(), layout.d().at(0).b().getVLALength());
+		assertEquals(layout.d().at(1).a(), layout.d().at(1).b().getVLALength());
+		assertEquals(layout.d().at(2).a(), layout.d().at(2).b().getVLALength());
+		
+		assertEquals(3, layout.d().at(0).b().getVLALength());
+		assertEquals(5, layout.d().at(1).b().getVLALength());
+		assertEquals(2, layout.d().at(2).b().getVLALength());
+		
+		/* Test reads */
+		assertEquals(3, layout.c());
+		assertEquals(6, layout.e());
+		
+		/* Test writes */
+		Byte writeData = Layout.getLayout(Byte.class);
+		writeData.bindLocation(new Location(new byte []{0,0,0,0,0,0,0,0}));
+		writeData.value((byte)-1);
+		
+		layout.d().at(0).b().put(2, writeData);
+		layout.d().at(1).b().put(4, writeData);
+		layout.d().at(2).b().put(1, writeData);
+		
+		assertEquals(-1, layout.d().at(0).b().at(2).value());
+		assertEquals(-1, layout.d().at(1).b().at(4).value());
+		assertEquals(-1, layout.d().at(2).b().at(1).value());
+	}
+	
+	private byte[] longArrayToByteArray(long[] longArr) {
+		byte[] arr = new byte[longArr.length * 8];
+		LongArray1D longLayoutArr = LayoutType.getPrimArray1D(long.class, longArr.length);
+		longLayoutArr.bindLocation(new Location(arr));
+
+		for(int i = 0; i < longArr.length; i++) {
+			longLayoutArr.put(i, longArr[i]);
+		}
+		
+		return arr;
+	}
+	
+	private byte[] intArrayToByteArray(int[] intArr) {
+		byte[] arr = new byte[intArr.length * 4];
+		IntArray1D intLayoutArr = LayoutType.getPrimArray1D(int.class, intArr.length);
+		intLayoutArr.bindLocation(new Location(arr));
+
+		for(int i = 0; i < intArr.length; i++) {
+			intLayoutArr.put(i, intArr[i]);
+		}
+		
+		return arr;
+	}
+	
+	@Test
+	public void testMultipleLongVLAArraysInLayout() {
+		System.out.println("== testMultipleLongVLAArraysInLayout ==");
+		VLSLong3 layout = Layout.getLayout(VLSLong3.class);
+		long[] data = {3,3,1,2,3,5,1,2,3,4,5,2,1,2,6};
+		layout.bindLocation(new Location(longArrayToByteArray(data)));
+		
+		/* test repeatCout */
+		assertEquals(3, layout.d().getVLALength());
+		
+		assertEquals(layout.d().at(0).a(), layout.d().at(0).b().getVLALength());
+		assertEquals(layout.d().at(1).a(), layout.d().at(1).b().getVLALength());
+		assertEquals(layout.d().at(2).a(), layout.d().at(2).b().getVLALength());
+		
+		assertEquals(3, layout.d().at(0).b().getVLALength());
+		assertEquals(5, layout.d().at(1).b().getVLALength());
+		assertEquals(2, layout.d().at(2).b().getVLALength());
+		
+		/* Test reads */
+		assertEquals(3, layout.c());
+		assertEquals(6, layout.e());
+		
+		/* Test writes */
+		Long writeData = Layout.getLayout(Long.class);
+		writeData.bindLocation(new Location(new byte [8]));
+		writeData.value(-1);
+		
+		layout.d().at(0).b().put(2, writeData);
+		layout.d().at(1).b().put(4, writeData);
+		layout.d().at(2).b().put(1, writeData);
+		
+		assertEquals(-1, layout.d().at(0).b().at(2).value());
+		assertEquals(-1, layout.d().at(1).b().at(4).value());
+		assertEquals(-1, layout.d().at(2).b().at(1).value());
+	}
+	
+	@Test
+	public void testEAInLayout() {
+		System.out.println("== testEAInLayout ==");
+		VLS1 layout = Layout.getLayout(VLS1.class);
+		byte[] data = {3,1,2,3,5,1,2,3,4,5,2,1,2};
+		layout.bindLocation(new Location(data));
+				
+		assertEquals(layout.EA().a().lValue(), layout.a());
+		assertEquals(layout.EA().b().lValue().value(), layout.b().at(0).value());
+		assertEquals(layout.EA().c().lValue(), layout.c());
+		assertEquals(layout.EA().d().lValue().value(), layout.d().at(0).value());
+		assertEquals(layout.EA().e().lValue(), layout.e());
+		assertEquals(layout.EA().f().lValue().value(), layout.f().at(0).value());
+		
+		AllPoints ap = Layout.getLayout(AllPoints.class);
+		Location loc = new Location(intArrayToByteArray(new int [] {1,2,1,2,3,1,2,3,4,1,2,3,4,5}));
+		ap.bindLocation(loc);
+		
+		assertEquals(ap.a().x(), ap.a().EA().x().lValue());
+		assertEquals(ap.a().y(), ap.a().EA().y().lValue());
+		assertEquals(ap.b().x(), ap.b().EA().x().lValue());
+		assertEquals(ap.b().y(), ap.b().EA().y().lValue());
+		assertEquals(ap.b().z(), ap.b().EA().z().lValue());
+		assertEquals(ap.c().x(), ap.c().EA().x().lValue());
+		assertEquals(ap.c().y(), ap.c().EA().y().lValue());
+		assertEquals(ap.c().z(), ap.c().EA().z().lValue());
+		assertEquals(ap.c().o(), ap.c().EA().o().lValue());
+		assertEquals(ap.d().x(), ap.d().EA().x().lValue());
+		assertEquals(ap.d().y(), ap.d().EA().y().lValue());
+		assertEquals(ap.d().z(), ap.d().EA().z().lValue());
+		assertEquals(ap.d().o(), ap.d().EA().o().lValue());
+		assertEquals(ap.d().p(), ap.d().EA().p().lValue());
 	}
 }

@@ -11,14 +11,10 @@ import com.ibm.layout.FloatArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of FloatArray1D
  */
 final class FloatArray1DImpl extends LayoutTypeImpl implements FloatArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 
 	protected FloatArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class FloatArray1DImpl extends LayoutTypeImpl implements FloatArray1D {
 
 	@Override
 	public float at(long index) {
-		return unsafe.getFloat(this.location.getData(), this.location.getOffset() + index * 4);
+		return UnsafeImplHelper.loadNativeFloat(this.location.getData(), this.location.getOffset() + index * 4);
 	}
 
 	@Override
 	public void put(long index, float value) {
-		unsafe.putFloat(this.location.getData(), this.location.getOffset() + index * 4, value);
+		UnsafeImplHelper.storeNativeFloat(this.location.getData(), this.location.getOffset() + index * 4, value);
 	}
 
 	@Override

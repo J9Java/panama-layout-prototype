@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.ByteArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of ByteArray2D
  */
-final class ByteArray2DImpl extends LayoutTypeImpl implements ByteArray2D {
-	private static final Unsafe unsafe = null;
-	
+final class ByteArray2DImpl extends LayoutTypeImpl implements ByteArray2D {	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -29,12 +25,12 @@ final class ByteArray2DImpl extends LayoutTypeImpl implements ByteArray2D {
 
 	@Override
 	public byte at(long i, long j) {
-		return unsafe.getByte(this.location.getData(), this.location.getOffset() + (i * dim2 + j));
+		return UnsafeImplHelper.loadNativeByte(this.location.getData(), this.location.getOffset() + (i * dim2 + j));
 	}
 
 	@Override
 	public void put(long i, long j, byte val) {
-		unsafe.putByte(this.location.getData(), this.location.getOffset() + (i * dim2 + j), val);
+		UnsafeImplHelper.storeNativeByte(this.location.getData(), this.location.getOffset() + (i * dim2 + j), val);
 	}
 
 	@Override

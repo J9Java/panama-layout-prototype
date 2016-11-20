@@ -1,12 +1,13 @@
 /*******************************************************************************
- *  Copyright (c) 2015, 2016 IBM Corporation.
+ *  Copyright (c) 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
- *  http://www.eclipse.org/legal/epl-v10.html 
+ *  http://www.eclipse.org/legal/epl-v10.html
  *******************************************************************************/
 package com.user.examples.myline;
 
+import com.ibm.layout.IntPointer ;
 import com.ibm.layout.Layout;
 import com.ibm.layout.LayoutDesc;
 
@@ -14,15 +15,25 @@ import com.ibm.layout.LayoutDesc;
 @LayoutDesc({"x:jint:4","y:jint:4"})
 public interface Point extends Layout {
 
+	interface EffectiveAddress {
+
+		public IntPointer x();
+
+		public IntPointer y();
+
+	}
+
+	public Point.EffectiveAddress EA();
+
 	public long sizeof();
 
-	public abstract int x();
+	public int x();
 
-	public abstract int y();
+	public int y();
 
-	public abstract void x(int val);
+	public void x(int val);
 
-	public abstract void y(int val);
+	public void y(int val);
 
 	@Override
 	public String toString();

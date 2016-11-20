@@ -11,14 +11,10 @@ import com.ibm.layout.BooleanArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of BooleanArray1D
  */
 final class BooleanArray1DImpl extends LayoutTypeImpl implements BooleanArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 	
 	protected BooleanArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class BooleanArray1DImpl extends LayoutTypeImpl implements BooleanArray1D 
 
 	@Override
 	public boolean at(long index) {
-		return unsafe.getBoolean(this.location.getData(), this.location.getOffset() + index);
+		return UnsafeImplHelper.loadNativeBoolean(this.location.getData(), this.location.getOffset() + index);
 	}
 
 	@Override
 	public void put(long index, boolean value) {
-		unsafe.putBoolean(this.location.getData(), this.location.getOffset() + index, value);
+		UnsafeImplHelper.storeNativeBoolean(this.location.getData(), this.location.getOffset() + index, value);
 	}
 
 	@Override

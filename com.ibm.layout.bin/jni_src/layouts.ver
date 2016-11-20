@@ -1,0 +1,9 @@
+{
+	global :
+		JNI_OnLoad;
+		JNI_OnUnload;
+		Java_com_ibm_layout_UnsafeHelper_bufferFromAddressImpl;
+		Java_com_ibm_layout_UnsafeHelper_getDBBAddress;
+		Java_com_ibm_layout_UnsafeHelper_getDBBLength;
+	local : *;
+};

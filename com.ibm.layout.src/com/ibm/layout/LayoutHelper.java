@@ -15,6 +15,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.ByteBuffer;
 
+import com.ibm.layout.ImplHelper.TypeInfo;
+
 import sun.misc.Unsafe;
 
 /**
@@ -43,9 +45,14 @@ public final class LayoutHelper {
 		return inst;
 	}
 
-	private class ImplClassLoader extends ClassLoader {
+	class ImplClassLoader extends ClassLoader {
 		ImplClassLoader() {
 			super(ClassLoader.getSystemClassLoader());
+			try {
+				loadPrimArrayClass("com.ibm.layout.gen.UnsafeImplHelper");
+			} catch (Exception e) {
+				throw new RuntimeException("could not load UnsafeImplHelper");
+			}
 		}
 
 		@SuppressWarnings("unchecked")
@@ -55,8 +62,9 @@ public final class LayoutHelper {
 				return implClass;
 			}
 
-			Type[] requiredClasses = ImplHelper.getRequiredClasses(interfaceClass);
-			for (Type t : requiredClasses) {
+			TypeInfo[] requiredClasses = ImplHelper.getRequiredClasses(interfaceClass);
+			for (TypeInfo type : requiredClasses) {
+				Type t = type.type;
 				if (t instanceof ParameterizedType) {
 					Type actualType = ((ParameterizedType)t).getActualTypeArguments()[0];
 					if (LayoutType.class.isAssignableFrom((Class<?>) actualType)) {
@@ -64,8 +72,12 @@ public final class LayoutHelper {
 							inst.genArray1DImpl((Class<? extends Layout>)actualType);
 						} else if (((ParameterizedType)t).getRawType().toString().contains("2D")) {
 							inst.genArray2DImpl((Class<? extends Layout>)actualType);
-						}  else if (((ParameterizedType)t).getRawType().toString().contains("VLA")) {
+						} else if (((ParameterizedType)t).getRawType().toString().contains("VLA")) {
 							inst.genVLAImpl((Class<? extends Layout>)actualType, (Class<? extends Layout>)interfaceClass);
+						} else if (ComplexVLArray.class.isAssignableFrom((Class<?>) ((ParameterizedType)t).getRawType())) {
+							inst.genVLAWithUserClassImpl((Class<? extends Layout>)actualType, (Class<? extends Layout>)interfaceClass, t, type);
+						} else if (PriviledgedVLArray.class.isAssignableFrom((Class<?>) ((ParameterizedType)t).getRawType())) {
+							inst.genVLAWithUserClassImpl((Class<? extends Layout>)actualType, (Class<? extends Layout>)interfaceClass, t, type);
 						}
 					}
 				} else {
@@ -82,6 +94,10 @@ public final class LayoutHelper {
 			GenLayout loader = new GenLayout(interfaceClass);
 			byte[] bytes = loader.genBytecode();
 			implClass = defineClass(null, bytes, 0, bytes.length);
+			bytes = loader.genEABytecode();
+			if (null != bytes) {
+				defineClass(null, bytes, 0, bytes.length);
+			}
 			return implClass;
 		}
 
@@ -136,10 +152,34 @@ public final class LayoutHelper {
 			}
 			return implClass;
 		}
+		
+		@SuppressWarnings("unchecked")
+		<E extends Layout, AE extends Pointer<E>> 
+		Class<AE> loadPointerClass(Class<E> elementInterfaceClass, Class<AE> userDefinedPointerClass) throws Exception
+		{
+			String arrayInterfaceClassName;
+						
+			if (null == userDefinedPointerClass) {
+				/* append "1DImpl" to the element class name */
+				arrayInterfaceClassName = getPointerImplClassName(elementInterfaceClass);
+			} else {
+				/* append "Impl" to the user-defined class name */
+				arrayInterfaceClassName = getPointerImplClassName(userDefinedPointerClass);
+			}
+			
+			Class<AE> implClass = (Class<AE>)findLoadedClass(arrayInterfaceClassName);
+			if (null == implClass) {
+				GenPointer generator = new GenPointer(elementInterfaceClass, userDefinedPointerClass);
+				byte[] bytes = generator.genBytecode();
+				implClass = (Class<AE>)defineClass(null, bytes, 0, bytes.length);
+			}
+			return implClass;
+		}
+		
 
 		@SuppressWarnings("unchecked")
 		<E extends Layout, AE extends VLArray<E>, EE extends Layout> 
-		Class<AE> loadVLAClass(Class<E> elementInterfaceClass, Class<AE> userDefinedArrayClass, Class<EE> enclosingClass) throws Exception
+		Class<AE> loadVLAClass(Class<E> elementInterfaceClass, Class<AE> userDefinedArrayClass, Class<EE> enclosingClass, TypeInfo typeInfo) throws Exception
 		{
 			String arrayInterfaceClassName;
 			//Load element class
@@ -149,12 +189,12 @@ public final class LayoutHelper {
 			if (null == userDefinedArrayClass) {
 				arrayInterfaceClassName = getVLAImplClassName(elementInterfaceClass);
 			} else {
-				arrayInterfaceClassName = getVLAImplClassName(userDefinedArrayClass);
+				arrayInterfaceClassName = getVLAImplClassName(userDefinedArrayClass, typeInfo.repeatCountMember, enclosingClass);
 			}
 			
 			Class<AE> implClass = (Class<AE>)findLoadedClass(arrayInterfaceClassName);
 			if (null == implClass) {
-				GenVLArray generator = new GenVLArray(elementInterfaceClass, userDefinedArrayClass);
+				GenVLArray generator = new GenVLArray(elementInterfaceClass, userDefinedArrayClass, typeInfo);
 				byte[] bytes = generator.genBytecode();
 				implClass = (Class<AE>)defineClass(null, bytes, 0, bytes.length);
 			}
@@ -193,8 +233,16 @@ public final class LayoutHelper {
 
 	private ImplClassLoader implClassloader = new ImplClassLoader();
 
+	static String getVLAImplClassName(Class<? extends LayoutType> cls, String repeatCountName, Class<? extends Layout> enclosingClass) {
+		return getVLAImplClassName(cls.getSimpleName(), repeatCountName, enclosingClass.getSimpleName());
+	}
+	
 	static String getVLAImplClassName(Class<? extends LayoutType> cls) {
 		return "com.ibm.layout.gen." + cls.getSimpleName() + "VLArrayImpl";
+	}
+	
+	static String getVLAImplClassName(String cls, String repeatCountName, String enclosingClass) {
+		return "com.ibm.layout.gen." + cls + repeatCountName + enclosingClass + "VLArrayImpl";
 	}
 	
 	static String getImplClassName(Class<? extends LayoutType> cls) {
@@ -203,6 +251,10 @@ public final class LayoutHelper {
 
 	static String get1DImplClassName(Class<? extends LayoutType> cls) {
 		return "com.ibm.layout.gen." + cls.getSimpleName() + "1DImpl";
+	}
+	
+	static String getPointerImplClassName(Class<? extends LayoutType> cls) {
+		return "com.ibm.layout.gen.Layout" + cls.getSimpleName() + "PointerImpl";
 	}
 
 	static String get2DImplClassName(Class<? extends LayoutType> cls) {
@@ -259,6 +311,31 @@ public final class LayoutHelper {
 		return implClsName;
 	}
 	
+	static String getPrimPointerName(Class<?> primCls) {
+		String implClsName = "com.ibm.layout.gen.";
+
+		if (primCls == byte.class) {
+			implClsName += "BytePointerImpl";
+		} else if (primCls == boolean.class) {
+			implClsName += "BooleanPointerImpl";
+		} else if (primCls == short.class) {
+			implClsName += "ShortPointerImpl";
+		} else if (primCls == char.class) {
+			implClsName += "CharPointerImpl";
+		} else if (primCls == int.class) {
+			implClsName += "IntPointerImpl";
+		} else if (primCls == long.class) {
+			implClsName += "LongPointerImpl";
+		} else if (primCls == float.class) {
+			implClsName += "FloatPointerImpl";
+		} else if (primCls == double.class) {
+			implClsName += "DoublePointerImpl";
+		} else {
+			implClsName = null;
+		}
+		return implClsName;
+	}
+	
 	/**
 	 * Create a singleton layout class
 	 * @param interfaceCls The layout class
@@ -294,9 +371,6 @@ public final class LayoutHelper {
 			@SuppressWarnings("unchecked")
 			Class<T> implCls = (Class<T>)implClassloader.loadPrimArrayClass(className);
 			unsafe.ensureClassInitialized(implCls);
-
-			Field f = implCls.getDeclaredField("unsafe");
-			unsafe.putObject(unsafe.staticFieldBase(f), unsafe.staticFieldOffset(f), unsafe);
 			
 			return implCls;
 		} catch (Exception e) {
@@ -344,6 +418,36 @@ public final class LayoutHelper {
 	}
 	
 	/**
+	 * Create a Pointer class
+	 * 
+	 * @param elementInterfaceClass, the lvalue type of the Pointer
+	 * @return Pointer class
+	 */
+	public <E extends Layout, AE extends Pointer<E>> Class<AE> genPointer(final Class<E> elementInterfaceClass) {
+		return genPointer(elementInterfaceClass, null);
+	}
+
+	/**
+	 * Create a Pointer class
+	 * @param userDefinedArrayClass, user defined class
+	 * @param elementInterfaceClass, the lvalue type of the Pointer
+	 * @return Pointer class
+	 */
+	public <E extends Layout, AE extends Pointer<E>> Class<AE> genPointer(final Class<E> elementInterfaceClass,
+		final Class<AE> userDefinedArrayClass)
+	{
+		try {
+			Class<AE> implCls = implClassloader.loadPointerClass(elementInterfaceClass, userDefinedArrayClass);
+			unsafe.ensureClassInitialized(implCls);
+			
+			return implCls;
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	/**
 	 * Create a VLA class from user defined Layout
 	 * 
 	 * @param <AE> subclass of Layout
@@ -353,10 +457,10 @@ public final class LayoutHelper {
 	 * @return class
 	 */
 	public <E extends Layout, AE extends VLArray<E>, EE extends Layout> Class<AE> genVLAImpl(final Class<E> elementInterfaceClass,
-		final Class<AE> userDefinedArrayClass, final Class<EE> enclosingClass)
+		final Class<AE> userDefinedArrayClass, final Class<EE> enclosingClass, final TypeInfo typeInfo)
 	{
 		try {
-			Class<AE> implCls = implClassloader.loadVLAClass(elementInterfaceClass, userDefinedArrayClass, enclosingClass);
+			Class<AE> implCls = implClassloader.loadVLAClass(elementInterfaceClass, userDefinedArrayClass, enclosingClass, typeInfo);
 			unsafe.ensureClassInitialized(implCls);
 			
 			Field f = implCls.getDeclaredField("unsafe");
@@ -379,9 +483,26 @@ public final class LayoutHelper {
 	 * @return variable sized array class
 	 */
 	public <E extends Layout, AE extends VLArray<E>, EE extends Layout> Class<AE> genVLAImpl(final Class<E> elementInterfaceClass, final Class<EE> enclosingClass) {
-		return genVLAImpl(elementInterfaceClass, null, enclosingClass);
+		return genVLAImpl(elementInterfaceClass, null, enclosingClass, null);
 	}
 
+	/**
+	 * Create a VLA class
+	 * 
+	 * @param <AE> subclass of Layout
+	 * @param <E> element type
+	 * @param elementInterfaceClass, the element type of the array
+	 * @param enclosingClass, the layout class that contains the VLA
+	 * @param returnType, return type for the VLA
+	 * @return variable sized array class
+	 */
+	public <E extends Layout, AE extends VLArray<E>, EE extends Layout> Class<AE> genVLAWithUserClassImpl(final Class<E> elementInterfaceClass, final Class<EE> enclosingClass, Type returnType, TypeInfo typeInfo) {
+		@SuppressWarnings("unchecked")
+		Class<AE> userClass = (Class<AE>) ((ParameterizedType) returnType).getRawType();
+		
+		return genVLAImpl(elementInterfaceClass, userClass, enclosingClass, typeInfo);
+	}
+	
 	/**
 	 * Create an array class of java primitive type from user defined layout
 	 * 

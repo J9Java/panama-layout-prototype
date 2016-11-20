@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.BooleanArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of BooleanArray2D
  */
 final class BooleanArray2DImpl extends LayoutTypeImpl implements BooleanArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -28,12 +24,12 @@ final class BooleanArray2DImpl extends LayoutTypeImpl implements BooleanArray2D 
 
 	@Override
 	public boolean at(long i, long j) {
-		return unsafe.getBoolean(this.location.getData(), this.location.getOffset() + (i * dim2 + j));
+		return UnsafeImplHelper.loadNativeBoolean(this.location.getData(), this.location.getOffset() + (i * dim2 + j));
 	}
 
 	@Override
 	public void put(long i, long j, boolean val) {
-		unsafe.putBoolean(this.location.getData(), this.location.getOffset() + (i * dim2 + j), val);
+		UnsafeImplHelper.storeNativeBoolean(this.location.getData(), this.location.getOffset() + (i * dim2 + j), val);
 	}
 	
 	@Override

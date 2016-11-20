@@ -703,7 +703,7 @@ class GenPrimArray1D implements Opcodes {
 			mv.visitEnd();
 		}
 		
-		ImplHelper.genLayoutTypeImpl(cw, mv, fv, arrayImplClassName, false);
+		ImplHelper.genLayoutTypeImpl(cw, mv, fv, arrayImplClassName, 0, false);
 		cw.visitEnd();
 
 		return cw.toByteArray();

@@ -11,14 +11,10 @@ import com.ibm.layout.IntArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of IntArray1D
  */
 final class IntArray1DImpl extends LayoutTypeImpl implements IntArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 
 	protected IntArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class IntArray1DImpl extends LayoutTypeImpl implements IntArray1D {
 
 	@Override
 	public int at(long index) {
-		return unsafe.getInt(this.location.getData(), this.location.getOffset() + index * 4);
+		return UnsafeImplHelper.loadNativeInt(this.location.getData(), this.location.getOffset() + index * 4);
 	}
 
 	@Override
 	public void put(long index, int value) {
-		unsafe.putInt(this.location.getData(), this.location.getOffset() + index * 4, value);
+		UnsafeImplHelper.storeNativeInt(this.location.getData(), this.location.getOffset() + index * 4, value);
 	}
 
 	@Override

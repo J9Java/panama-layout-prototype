@@ -11,14 +11,10 @@ import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 import com.ibm.layout.LongArray1D;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of LongArray1D
  */
 final class LongArray1DImpl extends LayoutTypeImpl implements LongArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 
 	protected LongArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class LongArray1DImpl extends LayoutTypeImpl implements LongArray1D {
 
 	@Override
 	public long at(long index) {
-		return unsafe.getLong(this.location.getData(), this.location.getOffset() + index * 8);
+		return UnsafeImplHelper.loadNativeLong(this.location.getData(), this.location.getOffset() + index * 8);
 	}
 
 	@Override
 	public void put(long index, long value) {
-		unsafe.putLong(this.location.getData(), this.location.getOffset() + index * 8, value);
+		UnsafeImplHelper.storeNativeLong(this.location.getData(), this.location.getOffset() + index * 8, value);
 	}
 
 	@Override
