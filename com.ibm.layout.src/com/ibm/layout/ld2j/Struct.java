@@ -15,7 +15,8 @@ class Struct {
 	private String LDLayout = "";
 	private String packageName = "";
 	private Struct superclass = null;
-	private boolean containsVLA = false;
+	private Endian endian = Endian.NATIVE;
+	private int containsVLA = 0;
 	public String structQualifiedName = "";
 	public int numOfPointer = 0;
 	public static String defaultPackageName = "";
@@ -31,12 +32,21 @@ class Struct {
 	public Struct(String structQualifiedName, Struct superclass, Variable variables[]) throws VerifierException {
 		this.superclass = superclass;
 		this.structQualifiedName = structQualifiedName;
+		
+		if (this.structQualifiedName .contains(">")) {
+			endian = Endian.BIG;
+			this.structQualifiedName = this.structQualifiedName.substring(1, this.structQualifiedName .length());
+		} else if (this.structQualifiedName.contains("<")) {
+			endian = Endian.LITTLE;
+			this.structQualifiedName = this.structQualifiedName.substring(1, this.structQualifiedName .length());
+		} 
+		
 		if (!structQualifiedName.contains(".")) {
 			this.packageName = defaultPackageName;
-			this.structName = structQualifiedName;
-			this.structQualifiedName = defaultPackageName + "." + structQualifiedName;
+			this.structName = this.structQualifiedName ;
+			this.structQualifiedName = defaultPackageName + "." + this.structQualifiedName ;
 		} else {
-			String[] tmp = structQualifiedName.split("\\.");
+			String[] tmp = this.structQualifiedName .split("\\.");
 			for (int i = 0; i < tmp.length - 1; i++) {
 				packageName += tmp[i];
 				if (i != (tmp.length - 2)) {
@@ -47,19 +57,6 @@ class Struct {
 		}
 
 		this.variables = variables;
-		boolean hasOneVLA = false;
-		for (Variable var : this.variables) {
-			if (var.repeatCountField != null) {
-				if (hasOneVLA) {
-					throw new VerifierException(structQualifiedName + " has more than one VLA");
-				} else {
-					hasOneVLA = true;
-				}
-			}
-		}
-		if ((hasOneVLA) && (this.variables[this.variables.length - 1].repeatCountField == null)) {
-			throw new VerifierException("the VLA must be the last member in '" + structQualifiedName + "'");
-		}
 		AllStructsName += this.structQualifiedName;
 		AllStructsName += " ";
 		Variable.totalSize = 0;
@@ -81,7 +78,7 @@ class Struct {
 	private String setLDLayout() {
 		String newString = "";
 		for (int i = 0; i < variables.length; i++) {
-			newString += variables[i].convertToLD();
+			newString += variables[i].convertToLD(endian);
 			if (i != variables.length - 1) {
 				newString += ",";
 			}
@@ -136,6 +133,8 @@ class Struct {
 		code += getLayoutDesc();
 		code += ("public interface " + this.structName + " extends "
 				+ (this.superclass == null ? "Layout" : this.superclass.getStructName()) + " {\n\n");
+		code += getEAInterface();
+		code += getEAMethod();
 		code += getSizeOfMethod();
 		System.out.println("Struct name: " + this.structName);//Unnecessary
 		//getter
@@ -167,7 +166,7 @@ class Struct {
 			}
 			System.out.println(var);//Unnecessary
 		}
-		if (containsVLA) {
+		if (containsVLA == 1) {
 			code += bindLocationWithInitializer(vla);
 		}
 		//setter
@@ -249,19 +248,32 @@ class Struct {
 		String importString = "";
 		boolean flag_1D = false;
 		boolean flag_2D = false;
+		boolean importPointer = false;
 		HashSet<String> hs_1D = new HashSet<String>(1);
 		HashSet<String> hs_2D = new HashSet<String>(1);
 		String[] array_1D;
 		String[] array_2D;
 		for (Variable var : variables) {
 			if (null != var.getRepeatCountField()) {
-				containsVLA = true;
+				if (var.getUserClass() == null) {
+					containsVLA++;
+				} else {
+					importString += "import " + this.packageName + "." + var.getUserClass() + ";\n";
+				}
 			} else if (var.getArraySize().length == 1) {
 				if (!var.isPrimArray)
 					flag_1D = true;
 			} else if (var.getArraySize().length == 2) {
 				if (!var.isPrimArray)
 					flag_2D = true;				
+			}
+			var.getEAGetter();
+			if (var.primitivePointer != null) {
+				if (!importString.contains(var.primitivePointer)) {
+					importString += "import com.ibm.layout." + var.primitivePointer + ";\n";
+				}
+			} else {
+				importPointer = true;
 			}
 		}
 
@@ -288,10 +300,13 @@ class Struct {
 		for (String s : array_2D) {
 			importString += ("import com.ibm.layout." + Variable.toUpperCaseLetter(s) + "Array2D;\n");
 		}
-
+		
+		if (importPointer) importString += "import com.ibm.layout.Pointer;\n";
+		
 		importString += (((flag_1D == true) ? "import com.ibm.layout.Array1D;\n" : "")
 				+ ((flag_2D == true) ? "import com.ibm.layout.Array2D;\n" : "")
-				+ ((containsVLA == true) ? "import com.ibm.layout.VLArray;\nimport com.ibm.layout.Location;\n" : "")
+				+ ((containsVLA == 1) ? "import com.ibm.layout.Location;\n" : "")
+				+ ((containsVLA > 0) ? "import com.ibm.layout.VLArray;\n" : "")
 				+ "import com.ibm.layout.Layout;\nimport com.ibm.layout.LayoutDesc;\n");
 
 		String used = "";
@@ -299,7 +314,8 @@ class Struct {
 			if (Helper.isNestedStruct(v.getType())) {
 				String[] tmp = Struct.AllStructsName.split(" ");
 				for (String s : tmp) {
-					if (s.contains(v.getType())) {
+					String[] strs = s.split("\\.");
+					if (strs[strs.length - 1].equals(v.getType())) {
 						if (!s.equals(this.packageName + "." + v.getType())) {
 							if (!used.contains(v.getType())) {
 								importString += ("import " + s + ";\n");
@@ -322,6 +338,19 @@ class Struct {
 
 	private String getToStringMethod() {
 		return "\t@Override\n\tpublic String toString();\n\n";
+	}
+	
+	private String getEAMethod() {
+		return "\tpublic " + this.structName + ".EffectiveAddress EA();\n\n"; 
+	}
+
+	private String getEAInterface() {
+		String code = "\tinterface EffectiveAddress {\n\n";
+		for (Variable v : variables) {
+			code += v.getEAGetter();
+		}
+		code += "\t}\n\n";
+		return code;
 	}
 
 }

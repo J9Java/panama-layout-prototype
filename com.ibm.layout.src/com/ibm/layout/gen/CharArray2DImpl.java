@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.CharArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of CharArray2D
  */
 final class CharArray2DImpl extends LayoutTypeImpl implements CharArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 
@@ -28,12 +24,12 @@ final class CharArray2DImpl extends LayoutTypeImpl implements CharArray2D {
 
 	@Override
 	public char at(long i, long j) {
-		return unsafe.getChar(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2);
+		return UnsafeImplHelper.loadNativeChar(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2);
 	}
 
 	@Override
 	public void put(long i, long j, char val) {
-		unsafe.putChar(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2, val);
+		UnsafeImplHelper.storeNativeChar(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 2, val);
 	}
 	
 	public final long dim1() {

@@ -166,4 +166,56 @@ public interface LayoutType {
 		}
 		return null;
 	}
+	
+	/**
+	 * Create a Pointer instance of java primitive type 
+	 * 
+	 * @param <T> subclass of Layout
+	 * @param primCls The layout class for each array element.
+	 * @return an instance of a primitive pointer
+	 */
+	static public <T extends LayoutType> T getPrimPointer(Class<?> primCls) {
+		final String implClsName = LayoutHelper.getPrimPointerName(primCls);
+		Class<T> implCls;
+		try {
+			LayoutHelper f = LayoutHelper.getFactory();
+			implCls = f.genPrimArrayImpl(implClsName);
+			Constructor<T> ctor = implCls.getDeclaredConstructor(new Class<?>[] {});
+			ctor.setAccessible(true);
+			return ctor.newInstance();
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+			| InvocationTargetException | NoSuchMethodException | SecurityException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	/**
+	 * Create a Pointer instance of layout type 
+	 * 
+	 * @param <T> subclass of Layout
+	 * @param primCls The layout class for each array element.
+	 * @return an instance of a primitive pointer
+	 */
+	static public <T extends Layout> Pointer<T> getPointer(final Class<T> cls) {
+		Class<Pointer<T>> implCls;
+		Class<T> elementCls;
+		try {
+			LayoutHelper f = LayoutHelper.getFactory();
+			if (Layout.class.isAssignableFrom(cls)) {
+				elementCls = f.genLayoutImpl((Class<T>) cls);
+				Constructor<T> elementCtor = elementCls.getDeclaredConstructor(new Class<?>[] {});
+				elementCtor.setAccessible(true);
+			}
+			implCls = f.genPointer(cls);
+			Constructor<Pointer<T>> ctor = implCls.getDeclaredConstructor(new Class<?>[] {});
+			ctor.setAccessible(true);
+			return ctor.newInstance();
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+			| InvocationTargetException | NoSuchMethodException | SecurityException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 }

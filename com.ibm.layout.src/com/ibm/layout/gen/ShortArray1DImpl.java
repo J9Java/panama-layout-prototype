@@ -11,14 +11,10 @@ import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 import com.ibm.layout.ShortArray1D;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of ShortArray1D
  */
 final class ShortArray1DImpl extends LayoutTypeImpl implements ShortArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 	
 	protected ShortArray1DImpl(long length) {
@@ -26,12 +22,12 @@ final class ShortArray1DImpl extends LayoutTypeImpl implements ShortArray1D {
 	}
 	@Override
 	public short at(long index) {
-		return unsafe.getShort(this.location.getData(), this.location.getOffset() + index * 2);
+		return UnsafeImplHelper.loadNativeShort(this.location.getData(), this.location.getOffset() + index * 2);
 	}
 
 	@Override
 	public void put(long index, short value) {
-		unsafe.putShort(this.location.getData(), this.location.getOffset() + index * 2, value);
+		UnsafeImplHelper.storeNativeShort(this.location.getData(), this.location.getOffset() + index * 2, value);
 	}
 
 	@Override

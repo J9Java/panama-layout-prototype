@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2014, 2015 IBM Corporation.
+ *  Copyright (c) 2014, 2016 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -7,19 +7,13 @@
  *******************************************************************************/
 package com.ibm.layout;
 
-import com.ibm.layout.Layout;
-import com.ibm.layout.LayoutDesc;
-
 /**
- * 32-Bits Pointer Layout
+ * Pointer Layout
  */
-@LayoutDesc({ "value:jint:4" })
-public interface Pointer extends Layout {
-	public abstract int value();
-
-	public abstract void value(int val);
-
-	@Override
-	public String toString();
+public interface Pointer<T extends LayoutType> extends PointerType {
 	
+	public T lValue();
+	
+	public Pointer<T> atOffset(long offset);
 }
+

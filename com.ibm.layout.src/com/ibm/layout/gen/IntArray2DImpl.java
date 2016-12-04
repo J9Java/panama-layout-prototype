@@ -10,25 +10,21 @@ package com.ibm.layout.gen;
 import com.ibm.layout.IntArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of IntArray2D
  */
 final class IntArray2DImpl extends LayoutTypeImpl implements IntArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 
 	@Override
 	public int at(long i, long j) {
-		return unsafe.getInt(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4);
+		return UnsafeImplHelper.loadNativeInt(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4);
 	}
 
 	@Override
 	public void put(long i, long j, int val) {
-		unsafe.putInt(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4, val);
+		UnsafeImplHelper.storeNativeInt(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4, val);
 	}
 
 	protected IntArray2DImpl(long dim1, long dim2) {

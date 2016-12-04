@@ -3,12 +3,14 @@
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
- *  http://www.eclipse.org/legal/epl-v10.html 
+ *  http://www.eclipse.org/legal/epl-v10.html
  *******************************************************************************/
 package com.user.examples.variablelengtharray;
 
-import com.ibm.layout.VLArray;
+import com.ibm.layout.IntPointer ;
+import com.ibm.layout.Pointer;
 import com.ibm.layout.Location;
+import com.ibm.layout.VLArray;
 import com.ibm.layout.Layout;
 import com.ibm.layout.LayoutDesc;
 
@@ -16,11 +18,21 @@ import com.ibm.layout.LayoutDesc;
 @LayoutDesc({"lengthOfArray:jint:4","elements:ArrayElement[lengthOfArray]:0"})
 public interface VariableLengthArray extends Layout {
 
+	interface EffectiveAddress {
+
+		public IntPointer lengthOfArray();
+
+		public Pointer<ArrayElement> elements();
+
+	}
+
+	public VariableLengthArray.EffectiveAddress EA();
+
 	public long sizeof();
 
-	public abstract int lengthOfArray();
+	public int lengthOfArray();
 
-	public abstract VLArray<ArrayElement> elements();
+	public VLArray<ArrayElement> elements();
 
 	public void bindLocation(Location loc, int repeatCountInitializer);
 

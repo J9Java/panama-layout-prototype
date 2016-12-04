@@ -11,14 +11,10 @@ import com.ibm.layout.DoubleArray1D;
 import com.ibm.layout.LayoutTypeImpl;
 import com.ibm.layout.Location;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of DoubleArray1D
  */
 final class DoubleArray1DImpl extends LayoutTypeImpl implements DoubleArray1D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long length;
 
 	protected DoubleArray1DImpl(long length) {
@@ -27,12 +23,12 @@ final class DoubleArray1DImpl extends LayoutTypeImpl implements DoubleArray1D {
 
 	@Override
 	public double at(long index) {
-		return unsafe.getDouble(this.location.getData(), this.location.getOffset() + index * 8);
+		return UnsafeImplHelper.loadNativeDouble(this.location.getData(), this.location.getOffset() + index * 8);
 	}
 
 	@Override
 	public void put(long index, double value) {
-		unsafe.putDouble(this.location.getData(), this.location.getOffset() + index * 8, value);
+		UnsafeImplHelper.storeNativeDouble(this.location.getData(), this.location.getOffset() + index * 8, value);
 	}
 
 	@Override

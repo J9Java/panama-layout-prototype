@@ -30,6 +30,8 @@ public abstract class LayoutTypeImpl implements LayoutType {
 	public void bindLocation(Location loc) {
 		if(true == loc.checkDataFits(this.sizeof())) {
 			location = loc;
+		} else {
+			throw new RuntimeException("data does not fit");
 		}
 	}
 	

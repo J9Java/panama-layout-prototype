@@ -9,6 +9,7 @@ package com.ibm.layout;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,21 +49,61 @@ final class ImplHelper implements Opcodes {
 		public String impl; // impl class for non-primitives
 		public long[] dims; // array dim
 		public String elementImpl; // element impl class for non-primitives
+		public String element;
 		public String repeatCountMember;
+		public String returnClass;
+		public Endian endian = Endian.NATIVE;
+		public boolean complexUserClass = false;
+		public boolean priviliedgedUserClass = false;
+		public String enclosingTypeName = null;
+		public String pointerSig = null;
+		public boolean isVarSized = false;
 	}
 
+	static final class TypeInfo {
+		public Type type;
+		public String repeatCountMember;
+		public String fixedHeaderType;
+		public String enclosingType;
+		
+		public TypeInfo(Type type, String header) {
+			this.type = type;
+			this.repeatCountMember = header;
+		}
+		
+		public TypeInfo(Type type, String header, String fixedHeaderType, String enclosingType) {
+			this.type = type;
+			this.repeatCountMember = header;
+			this.fixedHeaderType = fixedHeaderType;
+			this.enclosingType = enclosingType;
+		}
+		
+		public TypeInfo(Type type) {
+			this(type, (String) null);
+		}
+	}
+	
 	/**
 	 * Find classes that must be generated before the current one. 
 	 * @param interfaceCls A layout interface class
 	 * @return Set of required classes.
 	 */
-	static public Type[] getRequiredClasses(Class<? extends Layout> interfaceCls) {
+	static public TypeInfo[] getRequiredClasses(Class<? extends Layout> interfaceCls) {
 		/* Return types of field getter methods */
 		Method[] mm = interfaceCls.getDeclaredMethods();
-		LinkedHashSet<Type> classSet = new LinkedHashSet<Type>(mm.length);
+		LinkedHashSet<TypeInfo> classSet = new LinkedHashSet<TypeInfo>(mm.length);
 		for (int i = 0; i < mm.length; i++) {
 			if (Modifier.isAbstract(mm[i].getModifiers())) {
-				Type t = mm[i].getGenericReturnType();
+				TypeInfo t = new TypeInfo(mm[i].getGenericReturnType());
+				if (t.type instanceof ParameterizedType) {
+					String memberName = mm[i].getName();
+					TypeInfo fixedHeader = findHeaderAndType(interfaceCls, memberName);
+					if (null != fixedHeader) {
+						t.repeatCountMember = fixedHeader.repeatCountMember;
+						t.fixedHeaderType = fixedHeader.fixedHeaderType;
+						t.enclosingType = fixedHeader.enclosingType;
+					}
+				}
 				classSet.add(t);
 			}
 		}
@@ -71,10 +112,43 @@ final class ImplHelper implements Opcodes {
 		Class<?> superInterface = getSuperInterface(interfaceCls);
 		String superInterfaceName = superInterface.getName();
 		if (!superInterfaceName.contains("com.ibm.layout")) {
-			classSet.add((Type)superInterface);
+			classSet.add(new TypeInfo(superInterface));
 		}
-		return classSet.toArray(new Type[0]);
+		return classSet.toArray(new TypeInfo[0]);
 	}
+	
+	public static TypeInfo findHeaderAndType(Class<? extends Layout> interfaceCls, String memberName) {
+		String header = null;
+		
+		//search for varArray header
+		for (String m : getAnnotation(interfaceCls)) {
+			String[] member = m.split(":");
+			if (member[0].contains(">") || member[0].contains("<")) {
+				member[0] = member[0].substring(1);
+			}
+			if (member[0].equals(memberName)) {
+				int start = member[1].indexOf('[');
+				int end = member[1].indexOf(']');
+				if ((start > 0) && (end > 0)) {
+					header = member[1].substring(start + 1, end);
+				}
+			}
+		}
+		
+		//search for type of header
+		for (String m : getAnnotation(interfaceCls)) {
+			String[] member = m.split(":");
+			if (member[0].contains(">") || member[0].contains("<")) {
+				member[0] = member[0].substring(1);
+			}
+			if (member[0].equals(header)) {
+				return new TypeInfo(null, member[0], member[1], interfaceCls.getSimpleName());
+			}
+		}
+		
+		return null;
+	}
+	
 	
 	/**
 	 * Find the field description specified by fieldName in array of field description fields
@@ -109,6 +183,10 @@ final class ImplHelper implements Opcodes {
 				for (Method i : cls.getDeclaredMethods()) {
 					if (Modifier.isAbstract(i.getModifiers())) {
 						fieldClasses.put(i.getName(), i.getReturnType().getName());
+						Type returnType = i.getGenericReturnType();
+						if (returnType instanceof ParameterizedType) {
+							fieldClasses.put(i.getName() + "ElementType", ((ParameterizedType) returnType).getActualTypeArguments()[0].getTypeName());
+						}
 					}
 				}
 				cls = getSuperInterface(cls);
@@ -117,11 +195,41 @@ final class ImplHelper implements Opcodes {
 		for (Method i : interfaceCls.getDeclaredMethods()) {
 			if (Modifier.isAbstract(i.getModifiers())) {
 				fieldClasses.put(i.getName(), i.getReturnType().getName());
+				Type returnType = i.getGenericReturnType();
+				if (returnType instanceof ParameterizedType) {
+					fieldClasses.put(i.getName() + "ElementType", ((ParameterizedType) returnType).getActualTypeArguments()[0].getTypeName());
+				}
 			}
 		}
 
 		return fieldClasses;
 	}
+	
+	static boolean isVariableLengthType(Class<?> interfaceClass) {
+		String[] desc = getAnnotation(interfaceClass);
+		FieldDesc[] fldDesc = new FieldDesc[desc.length];
+		for (int i = 0; i < desc.length; i++) {
+			String[] split = desc[i].split(":");
+			fldDesc[i] = new FieldDesc();
+			fldDesc[i].name = split[0];
+			if (fldDesc[i].name.contains(">")) {
+				fldDesc[i].name = fldDesc[i].name.substring(1);
+				fldDesc[i].endian = Endian.BIG;
+			} else if (fldDesc[i].name.contains(">")) {
+				fldDesc[i].name = fldDesc[i].name.substring(1);
+				fldDesc[i].endian = Endian.LITTLE;
+			}
+			fldDesc[i].rawType = split[1];
+			fldDesc[i].size = Long.parseLong(split[2]);
+			parseFieldDescDims(fldDesc[i]);
+			if (null != fldDesc[i].repeatCountMember) {
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	
 	/**
 	 * Get field descriptions for all fields in interface class
 	 * 
@@ -129,7 +237,12 @@ final class ImplHelper implements Opcodes {
 	 * @return Array of fieldDescriptions 
 	 */
 	static public FieldDesc[] getFieldDesc(Class<? extends Layout> interfaceCls) {
-		String[] desc = getAnnotation(interfaceCls);
+		LayoutDesc ld = interfaceCls.getAnnotation(LayoutDesc.class);
+		if (null == ld) {
+			return null;
+		}
+		String[] desc = ld.value();
+		
 		desc = removePointerFromDesc(desc);
 		FieldDesc[] fldDesc = new FieldDesc[desc.length];
 		HashMap<String, String> fieldClasses = getFieldClasses(interfaceCls);
@@ -138,26 +251,73 @@ final class ImplHelper implements Opcodes {
 			String[] split = desc[i].split(":");
 			fldDesc[i] = new FieldDesc();
 			fldDesc[i].name = split[0];
+			if (fldDesc[i].name.contains(">")) {
+				fldDesc[i].name = fldDesc[i].name.substring(1);
+				fldDesc[i].endian = Endian.BIG;
+			} else if (fldDesc[i].name.contains(">")) {
+				fldDesc[i].name = fldDesc[i].name.substring(1);
+				fldDesc[i].endian = Endian.LITTLE;
+			}
 			fldDesc[i].rawType = split[1];
 			fldDesc[i].size = Long.parseLong(split[2]);
-
+			fldDesc[i].returnClass = fieldClasses.get(fldDesc[i].name);
+			fldDesc[i].enclosingTypeName = interfaceCls.getSimpleName();
+			fldDesc[i].element = fieldClasses.get(fldDesc[i].name + "ElementType");
+			
 			if (i == 0) {
 				fldDesc[i].offset = 0;
 			} else {
-				fldDesc[i].offset = fldDesc[i - 1].offset + fldDesc[i - 1].size;
+				if ((fldDesc[i - 1].size == 0) && (i > 1)) {
+					//the last field is variable sized, set offset to zero
+					//bytecode generation will do (this.offset + waypoint) to figure out real offset
+					fldDesc[i].offset = 0;
+				} else {
+					fldDesc[i].offset = fldDesc[i - 1].offset + fldDesc[i - 1].size;
+				}
 			}
 
 			parseFieldDescDims(fldDesc[i]);
+			try {
+				Class<?> clazz = Class.forName(fldDesc[i].returnClass);
+				if (ComplexVLArray.class.isAssignableFrom(clazz)) {
+					fldDesc[i].complexUserClass = true;
+					clazz = Class.forName(fldDesc[i].element);
+					fldDesc[i].isVarSized = ImplHelper.isVariableLengthType(clazz);
+				} else if (PriviledgedVLArray.class.isAssignableFrom(clazz)){
+					fldDesc[i].complexUserClass = true;
+					fldDesc[i].priviliedgedUserClass = true;
+					clazz = Class.forName(fldDesc[i].element);
+					fldDesc[i].isVarSized = ImplHelper.isVariableLengthType(clazz);
+				} else if (Layout.class.isAssignableFrom(clazz)) {
+					fldDesc[i].isVarSized = ImplHelper.isVariableLengthType(clazz);
+				} else if (VLArray.class.isAssignableFrom(clazz)) {
+					clazz = Class.forName(fldDesc[i].element);
+					fldDesc[i].isVarSized = ImplHelper.isVariableLengthType(clazz);
+				}
+			} catch (ClassNotFoundException e) {/* do nothing */}
+			
 			if (fldDesc[i].dims == null) {
 				parseNonArraySig(fldDesc[i], fieldClasses);
 			} else {
 				parseArraySig(fldDesc[i]);
 			}
+
+			if (isTypePrimitive(fldDesc[i].sig)) {
+				fldDesc[i].pointerSig = "com/ibm/layout/" + fieldSig2MethodType(fldDesc[i].sig) + "Pointer";
+			} else {
+				if (null != fldDesc[i].element) {
+					fldDesc[i].pointerSig = "com/ibm/layout/Pointer<L"+  fldDesc[i].element.replace(".", "/") + ";>";
+				} else {
+					fldDesc[i].pointerSig = "com/ibm/layout/Pointer<"+  fldDesc[i].sig + ">";
+				}
+			}
+
 		}
 
+		
 		return fldDesc;
 	}
-
+	
 	/**
 	 * 
 	 * Tests whether input is an integer or not
@@ -246,9 +406,17 @@ final class ImplHelper implements Opcodes {
 				fldDesc.impl = getArrayClassImplName(nonArrayType, dim);
 				fldDesc.elementImpl = "com/ibm/layout/gen/" + nonArrayType +"Impl";
 			} else {
-				fldDesc.sig = "Lcom/ibm/layout/VLArray;";
-				fldDesc.sigGeneric = "Lcom/ibm/layout/VLArray<" + nonArrayType + ">;";
-				fldDesc.impl = getVLArrayClassImplName(nonArrayType);
+				if (fldDesc.complexUserClass) {
+					String classPackageName = getBinaryPackageName(fldDesc.returnClass);
+					String userArrayName = fldDesc.returnClass.substring(fldDesc.returnClass.lastIndexOf(".") + 1); 				
+					fldDesc.sig = "L" + classPackageName + "/" + userArrayName + ";";
+					fldDesc.sigGeneric = "L" + fldDesc.returnClass.replace('.', '/') + "<" + nonArrayType +">;";
+					fldDesc.impl = getVLArrayClassImplName(userArrayName, fldDesc.repeatCountMember, fldDesc.enclosingTypeName);
+				} else {
+					fldDesc.sig = "Lcom/ibm/layout/VLArray;";
+					fldDesc.sigGeneric = "Lcom/ibm/layout/VLArray<" + nonArrayType + ">;";
+					fldDesc.impl = getVLArrayClassImplName(nonArrayType);
+				}
 				fldDesc.elementImpl = "com/ibm/layout/gen/" + nonArrayType +"Impl";
 			}
 			break;
@@ -342,7 +510,7 @@ final class ImplHelper implements Opcodes {
 		}
 		return desc;
 	}
-
+	
 	/**
 	 * Get the binary name of an interface class
 	 */
@@ -393,9 +561,34 @@ final class ImplHelper implements Opcodes {
 		case 'D':
 			return "Double";
 		default:
-			return "UNKNOWN";
+			throw new RuntimeException("unknown fieldSig");
 		}
 	}
+	
+	static String fieldSig2MethodTypeLongForm(String fieldSig) {
+		char c = fieldSig.charAt(0);
+		switch (c) {
+		case 'Z':
+			return "Boolean";
+		case 'B':
+			return "Byte";
+		case 'C':
+			return "Character";
+		case 'S':
+			return "Short";
+		case 'I':
+			return "Integer";
+		case 'J':
+			return "Long";
+		case 'F':
+			return "Float";
+		case 'D':
+			return "Double";
+		default:
+			throw new RuntimeException("unknown fieldSig");
+		}
+	}
+	
 
 	/**
 	 * Get the Signature for a JNI type
@@ -451,7 +644,7 @@ final class ImplHelper implements Opcodes {
 	 * @param layoutClass A singleton layout class
 	 * @return Impl class name
 	 */
-	static public String getImplClassName(Class<? extends LayoutType> layoutClass) {
+	static public String getImplClassName(Class<?> layoutClass) {
 		return getImplClassName(layoutClass.getSimpleName());
 	}
 	
@@ -485,6 +678,25 @@ final class ImplHelper implements Opcodes {
 	static public String getArrayClassImplName(String simpleName, int dim) {
 		return "com/ibm/layout/gen/" + simpleName + dim + "DImpl";
 	}
+	
+	/**
+	 * Get the binary Impl name for a pointer layout.
+	 * All Impl classes reside in the same package.
+	 * @param layoutClass A pointer layout class
+	 * @return Impl class name
+	 */
+	static public String getPointerClassImplName(Class<? extends Layout> elementInterfaceClass) {
+		return getPointerClassImplName(elementInterfaceClass.getSimpleName());
+	}
+
+	/**
+	 * Get the Impl name for an pointer layout
+	 * @param simpleName simple name of pointer interface class
+	 * @return
+	 */
+	static public String getPointerClassImplName(String simpleName) {
+		return "com/ibm/layout/gen/Layout" + simpleName + "PointerImpl";
+	}
 
 	/**
 	 * Get the Impl name for a VLArray layout
@@ -495,6 +707,17 @@ final class ImplHelper implements Opcodes {
 	 */
 	static public String getVLArrayClassImplName(String simpleName) {
 		return "com/ibm/layout/gen/" + simpleName +"VLArrayImpl";
+	}
+	
+	/**
+	 * Get the Impl name for a VLArray layout
+	 * @param simpleName simple name of element interface class (must extend Layout)
+	 * @param repeatCountMember repeat count name
+	 * @param enclosingTypeName name of enclosing type
+	 * @return
+	 */
+	static public String getVLArrayClassImplName(String simpleName, String repeatCountName, String enclosingClassName) {
+		return "com/ibm/layout/gen/" + simpleName + repeatCountName + enclosingClassName + "VLArrayImpl";
 	}
 	
 	/**
@@ -573,17 +796,35 @@ final class ImplHelper implements Opcodes {
 			}
 	}
 	
-	static void genLayoutTypeImpl(ClassVisitor cw, MethodVisitor mv, FieldVisitor fv, String typeName, boolean layoutContainsVLA) 
+	static void genLayoutTypeImpl(ClassVisitor cw, MethodVisitor mv, FieldVisitor fv, String typeName, int layoutContainsVLA, boolean layoutIsVLA) 
 	{
 		{
 			fv = cw.visitField(ACC_PRIVATE + ACC_FINAL + ACC_STATIC, "unsafe", "Lsun/misc/Unsafe;", null, null);
 			fv.visitEnd();
 		}
+		
+		{
+			fv = cw.visitField(ACC_PROTECTED, "location", "Lcom/ibm/layout/Location;", null, null);
+			fv.visitEnd();
+		}
+		{
+			fv = cw.visitField(ACC_STATIC, "classFlags", "J", null, null);
+			fv.visitEnd();
+		}
+		{
+			mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+			mv.visitCode();
+			mv.visitInsn(LCONST_1);
+			mv.visitFieldInsn(PUTSTATIC, typeName, "classFlags", "J");
+			mv.visitInsn(RETURN);
+			mv.visitMaxs(2, 0);
+			mv.visitEnd();
+		}
 		{
 			mv = cw.visitMethod(ACC_PUBLIC, "containsVLA", "()Z", null, null);
 			mv.visitCode();
 			//if layout contains VLA return true, otherwise false
-			if (layoutContainsVLA) {
+			if (layoutContainsVLA > 0) {
 				mv.visitInsn(ICONST_1);
 			} else {
 				mv.visitInsn(ICONST_0);
@@ -593,29 +834,21 @@ final class ImplHelper implements Opcodes {
 			mv.visitEnd();
 		}
 		{
-			fv = cw.visitField(ACC_PROTECTED, "location", "Lcom/ibm/layout/Location;", null, null);
-			fv.visitEnd();
-		}
-		{
-			mv = cw.visitMethod(ACC_PUBLIC, "bindLocation",
-					"(Lcom/ibm/layout/Location;)V", null, null);
+			mv = cw.visitMethod(ACC_PUBLIC, "bindLocationNoCheck", "(Lcom/ibm/layout/Location;)V", null, null);
 			mv.visitCode();
-			mv.visitVarInsn(ALOAD, 1);
-			mv.visitVarInsn(ALOAD, 0);
-			mv.visitMethodInsn(INVOKEVIRTUAL, typeName, "sizeof",
-					"()J", false);
-			mv.visitMethodInsn(INVOKEVIRTUAL, "com/ibm/layout/Location",
-					"checkDataFits", "(J)Z", false);
-			Label l0 = new Label();
-			mv.visitJumpInsn(IFEQ, l0);
 			mv.visitVarInsn(ALOAD, 0);
 			mv.visitVarInsn(ALOAD, 1);
-			mv.visitFieldInsn(PUTFIELD, typeName, "location",
-					"Lcom/ibm/layout/Location;");
-			mv.visitLabel(l0);
-			mv.visitFrame(Opcodes.F_SAME, 0, null, 0, null);
+			mv.visitFieldInsn(PUTFIELD, typeName, "location", "Lcom/ibm/layout/Location;");
 			mv.visitInsn(RETURN);
-			mv.visitMaxs(3, 2);
+			mv.visitMaxs(2, 2);
+			mv.visitEnd();
+			mv = cw.visitMethod(ACC_PUBLIC, "bindLocation", "(Lcom/ibm/layout/Location;)V", null, null);
+			mv.visitCode();
+			mv.visitVarInsn(ALOAD, 0);
+			mv.visitVarInsn(ALOAD, 1);
+			mv.visitFieldInsn(PUTFIELD, typeName, "location", "Lcom/ibm/layout/Location;");
+			mv.visitInsn(RETURN);
+			mv.visitMaxs(2, 2);
 			mv.visitEnd();
 		}
 		{

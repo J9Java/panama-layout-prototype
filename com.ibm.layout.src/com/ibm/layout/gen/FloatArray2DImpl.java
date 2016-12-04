@@ -10,14 +10,10 @@ package com.ibm.layout.gen;
 import com.ibm.layout.FloatArray2D;
 import com.ibm.layout.LayoutTypeImpl;
 
-import sun.misc.Unsafe;
-
 /**
  * Generated implementation of FloatArray2D
  */
 final class FloatArray2DImpl extends LayoutTypeImpl implements FloatArray2D {
-	private static final Unsafe unsafe = null;
-	
 	protected final long dim1;
 	protected final long dim2;
 	
@@ -29,12 +25,12 @@ final class FloatArray2DImpl extends LayoutTypeImpl implements FloatArray2D {
 
 	@Override
 	public float at(long i, long j) {
-		return unsafe.getFloat(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4);
+		return UnsafeImplHelper.loadNativeFloat(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4);
 	}
 
 	@Override
 	public void put(long i, long j, float val) {
-		unsafe.putFloat(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4, val);
+		UnsafeImplHelper.storeNativeFloat(this.location.getData(), this.location.getOffset() + (i * dim2 + j) * 4, val);
 	}
 
 	public final long dim1() {
