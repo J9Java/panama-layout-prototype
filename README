@@ -8,8 +8,11 @@ panama-layout-prototype
                 |-> jni_src                     #JNI natives for ByteBuffer functionality
         |-> com.ibm.layout.bin
         |-> com.user.src
+                |-> com.user.examples.javaclassfile         #Demo for java class file reader
+                |-> com.user.examples.multivla              #Demo for multiVla
                 |-> com.user.examples.myline                #Demo for adding user functionality to generated facades
                 |-> com.user.examples.variablelengtharray   #Demo with variable length arrays
+                |-> com.user.examples.vlawithoperation      #Demo with vla and repeat count determined by operation
                 |-> com.user.test                           #Basic testing of layout features
                 |-> com.user.types                          #Types used in tests
         |-> com.user.bin
