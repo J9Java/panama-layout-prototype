@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  Copyright (c) 2016 IBM Corporation.
+ *  Copyright (c) 2016, 2017 IBM Corporation.
  *  All rights reserved. This program and the accompanying materials
  *  are made available under the terms of the Eclipse Public License v1.0
  *  which accompanies this distribution, and is available at
@@ -163,7 +163,8 @@ class GenVLArray implements Opcodes {
 					mv.visitFieldInsn(PUTFIELD, arrayImplClassName, "length", "J");
 					mv.visitVarInsn(ALOAD, 0);
 					mv.visitVarInsn(LLOAD, 3);
-					mv.visitVarInsn(LLOAD, 1);
+					mv.visitVarInsn(ALOAD, 0);
+					mv.visitFieldInsn(GETFIELD, arrayImplClassName, "length", "J");
 					mv.visitInsn(LMUL);
 					mv.visitFieldInsn(PUTFIELD, arrayImplClassName, "arraySize", "J");
 					mv.visitInsn(RETURN);

@@ -1,0 +1,10 @@
+">Byte",
+"val:jbyte:1";
+
+"MultiVla",
+"a:jbyte:1",
+"b:Byte[a]:0",
+"c:jbyte:1",
+"d:Byte[c]:0",
+"e:jbyte:1",
+"f:Byte[e]:0";

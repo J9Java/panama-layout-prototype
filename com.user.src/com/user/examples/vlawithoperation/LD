@@ -1,0 +1,8 @@
+">Byte",
+"val:jbyte:1";
+
+"VlaWithOperation",
+"a:jbyte:1",
+"b:Byte[SubOne a]:0",
+"c:jbyte:1",
+"d:Byte[AddOne c]:0";
